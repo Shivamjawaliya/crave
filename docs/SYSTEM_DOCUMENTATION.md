@@ -96,6 +96,36 @@ fooapp/
 │       ├── tailwind.config.js
 │       └── tsconfig.json
 │
+├── services/                          # Microservices Directory
+│   ├── api-gateway/                   # Microservices API Gateway & WebSocket Hub (:3001)
+│   │   ├── src/health/                # Centralized health probe across all microservices
+│   │   ├── src/proxy/                 # Routing, reverse proxying, & WebSocket event dispatch
+│   │   └── package.json, tsconfig.json, nest-cli.json
+│   │
+│   ├── auth-service/                  # Authentication & Identity Microservice (:4001)
+│   │   ├── src/auth/                  # Registration, login, token rotation, user profiles
+│   │   └── src/prisma/                # Microservice database access
+│   │
+│   ├── restaurant-service/            # Restaurant & Menu Microservice (:4002)
+│   │   ├── src/restaurants/           # Kitchen profiles, menu categories, item availability
+│   │   └── src/prisma/
+│   │
+│   ├── order-service/                 # Order Lifecycle & Checkout Microservice (:4003)
+│   │   ├── src/orders/                # Cart validation, server pricing quotes, order creation
+│   │   └── src/prisma/
+│   │
+│   ├── payment-service/               # Razorpay Payments & Webhooks Microservice (:4004)
+│   │   ├── src/payments/              # Server-side order creation, HMAC signature verification, deduplication
+│   │   └── src/prisma/
+│   │
+│   ├── delivery-service/              # Delivery Partner & Tracking Microservice (:4005)
+│   │   ├── src/delivery/              # Job pooling, concurrent assignment locking, GPS telemetry
+│   │   └── src/prisma/
+│   │
+│   └── notification-service/          # Background Events & Notifications Microservice (:4006)
+│       ├── src/notifications/         # RabbitMQ consumers, async event subscribers, alert store
+│       └── src/prisma/
+│
 ├── packages/
 │   ├── shared-types/                  # Shared TypeScript interfaces, enums, Socket.IO & RabbitMQ events
 │   ├── validation/                    # Zod schemas, paise currency conversion, order transition rules
@@ -294,7 +324,30 @@ All four frontend applications are built with **Next.js 15**, **React 19**, and 
 
 ---
 
-## 7. Infrastructure, Docker & Deployment
+## 7. Microservices Directory Architecture (`services/`)
+
+The platform includes a dedicated **`services/`** directory containing 7 decoupled, independently deployable NestJS microservices. Each service maintains its own lifecycle, `package.json`, `tsconfig.json`, and business boundaries:
+
+| Microservice | Default Port | Primary Responsibilities | Communication Pattern |
+| :--- | :--- | :--- | :--- |
+| **`api-gateway`** | `:3001` | Client entrypoint, reverse proxy, Socket.IO gateway, aggregated Swagger | HTTP REST, WebSockets |
+| **`auth-service`** | `:4001` | User registration, login, JWT issuance, session rotation, profiles & addresses | HTTP REST |
+| **`restaurant-service`** | `:4002` | Public discovery, owner kitchen CRUD, menu categories, availability toggles | HTTP REST, Redis Cache |
+| **`order-service`** | `:4003` | Cart store, server-side quote calculation (paise, GST), order creation & lifecycle | HTTP REST, Database Tx |
+| **`payment-service`** | `:4004` | Razorpay server orders, client signature verification, webhook deduplication | HTTP REST, HMAC SHA-256 |
+| **`delivery-service`** | `:4005` | Delivery partner availability, atomic job claiming, real-time GPS telemetry | HTTP REST, WebSockets |
+| **`notification-service`**| `:4006` | Consumes async events (`food_events`), in-app alerts, email/SMS dispatch | AMQP RabbitMQ, Topics |
+
+### Microservice Interaction & Event Flow
+1. **Client Request**: Frontend apps send requests to the **API Gateway** (`http://localhost:3001/api/v1`).
+2. **Reverse Proxying**: The Gateway delegates requests to the appropriate internal microservices (e.g. `/auth/*` -> `:4001`, `/restaurants/*` -> `:4002`, `/orders/*` -> `:4003`).
+3. **Data Consistency**: Domain services use PostgreSQL and Prisma for relational integrity with transactions where multi-table consistency is mandatory.
+4. **Asynchronous Events**: Order and payment state changes publish durable topic events (`order.placed`, `order.accepted`, `delivery.assigned`) to RabbitMQ. The `notification-service` listens on `#` and logs alerts.
+5. **Real-Time Telemetry**: The Delivery Service accepts GPS coordinates from delivery partners and the API Gateway broadcasts coordinates to subscribed order tracking rooms via Socket.IO.
+
+---
+
+## 8. Infrastructure, Docker & Deployment
 
 - **`docker-compose.yml`**:
   - **PostgreSQL 17**: Exposed on port `5433:5432` with healthcheck (`pg_isready`).
@@ -309,7 +362,7 @@ All four frontend applications are built with **Next.js 15**, **React 19**, and 
 
 ---
 
-## 8. Development Commands & Workflow
+## 9. Development Commands & Workflow
 
 ### 1. Installation
 ```bash
@@ -329,25 +382,39 @@ pnpm prisma:migrate
 pnpm prisma:seed
 ```
 
-### 4. Running Apps
+### 4. Running Microservices
 ```bash
-# Start all apps simultaneously
+# Start all microservices in parallel:
+pnpm dev:services
+
+# Or start individual microservices:
+pnpm dev:gateway             # http://localhost:3001 (API Gateway & Swagger)
+pnpm dev:auth                # http://localhost:4001 (Auth Service)
+pnpm dev:restaurant-service  # http://localhost:4002 (Restaurant Service)
+pnpm dev:order-service       # http://localhost:4003 (Order Service)
+pnpm dev:payment-service     # http://localhost:4004 (Payment Service)
+pnpm dev:delivery-service    # http://localhost:4005 (Delivery Service)
+pnpm dev:notification-service# http://localhost:4006 (Notification Service)
+```
+
+### 5. Running Frontend Apps
+```bash
+# Start all frontend apps simultaneously
 pnpm dev
 
 # Or start individually:
-pnpm dev:api          # http://localhost:3001
 pnpm dev:customer     # http://localhost:3000
 pnpm dev:restaurant   # http://localhost:3002
 pnpm dev:delivery     # http://localhost:3003
 pnpm dev:admin        # http://localhost:3004
 ```
 
-### 5. Running Tests & Builds
+### 6. Running Tests & Builds
 ```bash
-pnpm build            # Builds all shared packages, API, and Next.js apps
+pnpm build            # Builds all shared packages, services, and frontend apps
 pnpm test             # Runs test suites
 ```
 
-### 6. Interactive Swagger Documentation
+### 7. Interactive Swagger Documentation
 Open in your browser:
 **`http://localhost:3001/api/docs`**
