@@ -166,9 +166,9 @@
             </div>
             <p class="text-xs text-slate-400">Runs your unified API Gateway & WebSocket hub:</p>
             <ul class="text-xs font-mono text-teal-300 space-y-1.5 bg-slate-900 p-3 rounded-xl border border-slate-800">
-              <li>• food-api.onrender.com/api/v1</li>
-              <li>• WebSocket: wss://food-api...</li>
-              <li>• Swagger: food-api.../api/docs</li>
+              <li>• https://crave-azza.onrender.com/api/v1</li>
+              <li>• WebSocket: wss://crave-azza.onrender.com</li>
+              <li>• Swagger: https://crave-azza.onrender.com/api/docs</li>
             </ul>
           </div>
 
@@ -199,7 +199,7 @@
         <!-- STEP 1.1: FREE POSTGRESQL -->
         <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <input type="checkbox" id="free-step-1" onchange="toggleFreeStep(1)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+            <input type="checkbox" id="free-step-1" onchange="toggleFreeStep(1)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer" checked>
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Step 1.1</span>
               <h3 class="text-lg font-black text-white">Create Free PostgreSQL Database on Neon or Supabase</h3>
@@ -280,57 +280,47 @@
     <div id="tab-render" class="hidden space-y-8 animate-in fade-in">
       <div class="space-y-6">
 
+        <!-- STEP 2.1: GITHUB PUSH -->
         <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <input type="checkbox" id="free-step-5" onchange="toggleFreeStep(5)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+            <input type="checkbox" id="free-step-5" onchange="toggleFreeStep(5)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer" checked>
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Step 2.1</span>
-              <h3 class="text-lg font-black text-white">Push Code to GitHub Repository</h3>
+              <h3 class="text-lg font-black text-white">Code Pushed to GitHub Repository (Done)</h3>
             </div>
           </div>
-          <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>Both Render and Vercel pull your code directly from GitHub and re-deploy automatically on every <code class="text-emerald-400 font-mono">git push</code>.</p>
-            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
-              <button onclick="copyCode('git-push-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
-              <pre id="git-push-cmd">git add .
-git commit -m "Production release for Vercel and Render"
-git push origin main</pre>
+          <div class="pl-9 space-y-2 text-xs text-slate-300">
+            <div class="p-3 bg-slate-950 rounded-xl border border-emerald-500/30 font-mono text-emerald-400 text-[11px]">
+              ✅ Linked & Synchronized with: <strong>https://github.com/Shivamjawaliya/crave</strong>
             </div>
           </div>
         </div>
 
+        <!-- STEP 2.2: RENDER SERVICE -->
         <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <input type="checkbox" id="free-step-6" onchange="toggleFreeStep(6)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+            <input type="checkbox" id="free-step-6" onchange="toggleFreeStep(6)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer" checked>
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Step 2.2</span>
-              <h3 class="text-lg font-black text-white">Create Web Service on Render (Free)</h3>
+              <h3 class="text-lg font-black text-white">Backend Web Service on Render (Live 🎉)</h3>
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>1. Open <a href="https://render.com" target="_blank" class="text-emerald-400 underline font-bold">render.com</a> $\to$ Sign in with GitHub.</p>
-            <p>2. Click <strong>"New +"</strong> $\to$ <strong>"Web Service"</strong> $\to$ Select your repository.</p>
-            <p>3. Configure the settings:</p>
-            <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
-              <div><strong>Name:</strong> <span class="text-emerald-400">crave-api</span></div>
-              <div><strong>Runtime:</strong> <span class="text-emerald-400">Node</span></div>
-              <div><strong>Build Command:</strong> <span class="text-orange-400">pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm --filter api-gateway build</span></div>
-              <div><strong>Start Command:</strong> <span class="text-orange-400">node services/api-gateway/dist/main.js</span></div>
-              <div><strong>Instance Type:</strong> <span class="text-emerald-400 font-bold">Free ($0/month)</span></div>
+            <div class="p-4 bg-emerald-950/40 rounded-2xl border border-emerald-500/40 space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span class="font-bold text-emerald-300 text-sm">Service Status: 100% Live & Healthy</span>
+              </div>
+              <div class="font-mono text-xs text-white">
+                API Base URL: <a href="https://crave-azza.onrender.com/api/v1/health" target="_blank" class="text-emerald-400 underline font-bold">https://crave-azza.onrender.com</a>
+              </div>
+              <div class="font-mono text-xs text-slate-300">
+                Swagger Docs: <a href="https://crave-azza.onrender.com/api/docs" target="_blank" class="text-emerald-400 underline font-bold">https://crave-azza.onrender.com/api/docs</a>
+              </div>
+              <div class="mt-2 pt-2 border-t border-emerald-500/20 text-[11px] text-emerald-200">
+                💡 <strong>Render Start Command:</strong> <code class="text-white font-mono bg-slate-900 px-1.5 py-0.5 rounded">node scripts/start-all-production.js</code> (Runs Auth, Restaurant, Order, and Delivery microservices together on your free instance).
+              </div>
             </div>
-            <p>4. Under <strong>Environment Variables</strong>, add your database credentials:</p>
-            <div class="relative bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-300 space-y-1.5">
-              <button onclick="copyCode('render-env-box')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
-              <pre id="render-env-box">DATABASE_URL="postgresql://postgres:Shivam%407060@db.wizavsjoszlmiffmdqib.supabase.co:5432/postgres?sslmode=require"
-REDIS_URL="rediss://default:gQAAAAAAAbGwAAIgcDI1ZmJlYTlhNmNhNjI0ODNjOTI1MjVhNzg2NGRkNWI2MA@next-corgi-111024.upstash.io:6379"
-RABBITMQ_URL="amqps://vdlcvbbp:8l0wjavBYcjFK06tw3MiCbdR1d3VRAnT@capybara.lmq.cloudamqp.com/vdlcvbbp"
-JWT_ACCESS_SECRET="food_platform_jwt_access_secret_key_prod_8f19c8d374ab21"
-JWT_REFRESH_SECRET="food_platform_jwt_refresh_secret_key_prod_99b341f23a9d5"
-GATEWAY_PORT=3001
-PORT=3001</pre>
-            </div>
-            <p>5. Click <strong>"Create Web Service"</strong>!</p>
-            <p class="text-slate-400">Render will build your API Gateway and give you a free live URL: <code class="text-emerald-400 font-bold">https://crave-api.onrender.com</code>.</p>
           </div>
         </div>
 
@@ -360,8 +350,8 @@ PORT=3001</pre>
             </ul>
             <p>3. Under <strong>Environment Variables</strong>, add:</p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400">
-              NEXT_PUBLIC_GATEWAY_URL = https://crave-api.onrender.com/api/v1<br>
-              NEXT_PUBLIC_SOCKET_URL = https://crave-api.onrender.com
+              NEXT_PUBLIC_GATEWAY_URL = https://crave-azza.onrender.com/api/v1<br>
+              NEXT_PUBLIC_SOCKET_URL = https://crave-azza.onrender.com
             </div>
             <p>4. Click <strong>"Deploy"</strong>!</p>
             <p class="text-slate-400">Vercel compiles the app and gives you a free live URL: <code class="text-emerald-400 font-bold">https://crave-food.vercel.app</code>.</p>
@@ -382,12 +372,12 @@ PORT=3001</pre>
               <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-1">
                 <strong class="text-white block">Restaurant Dashboard</strong>
                 <span class="text-slate-400 block font-mono">Root Directory: apps/restaurant-dashboard</span>
-                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_GATEWAY_URL</span>
+                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_GATEWAY_URL = https://crave-azza.onrender.com/api/v1</span>
               </div>
               <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-1">
                 <strong class="text-white block">Delivery Partner Portal</strong>
                 <span class="text-slate-400 block font-mono">Root Directory: apps/delivery-dashboard</span>
-                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_API_URL</span>
+                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_API_URL = https://crave-azza.onrender.com/api/v1</span>
               </div>
             </div>
           </div>
@@ -402,7 +392,7 @@ PORT=3001</pre>
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>In your Render Dashboard $\to$ <code class="text-emerald-400">crave-api</code> $\to$ Environment Variables, update your CORS origins:</p>
+            <p>In your Render Dashboard $\to$ <code class="text-emerald-400">crave</code> $\to$ Environment Variables, update your CORS origins:</p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400 space-y-1">
               <div>WEB_ORIGIN = https://crave-food.vercel.app</div>
               <div>RESTAURANT_DASHBOARD_ORIGIN = https://restaurant-kds.vercel.app</div>
@@ -434,7 +424,7 @@ PORT=3001</pre>
             </p>
             <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 font-mono text-slate-300 space-y-1">
               <p>1. Go to <a href="https://cron-job.org" target="_blank" class="text-emerald-400 underline">cron-job.org</a> or <a href="https://uptimerobot.com" target="_blank" class="text-emerald-400 underline">uptimerobot.com</a> (100% Free).</p>
-              <p>2. Create a HTTP monitor pointing to: <code class="text-emerald-400">https://crave-api.onrender.com/api/v1/health</code></p>
+              <p>2. Create a HTTP monitor pointing to: <code class="text-emerald-400">https://crave-azza.onrender.com/api/v1/health</code></p>
               <p>3. Set the interval to ping every <strong>10 minutes</strong>.</p>
               <p class="text-slate-400">✨ This keeps your Render server warm, active, and instant 24 hours a day with 0 cold starts!</p>
             </div>
@@ -489,10 +479,16 @@ PORT=3001</pre>
     function updateFreeProgress() {
       let count = 0;
       for (let i = 1; i <= 9; i++) {
-        if (localStorage.getItem('free_food_step_' + i) === 'true') {
+        const cb = document.getElementById('free-step-' + i);
+        if (!cb) continue;
+        const saved = localStorage.getItem('free_food_step_' + i);
+        if (saved === 'true') {
+          cb.checked = true;
           count++;
-          const cb = document.getElementById('free-step-' + i);
-          if (cb) cb.checked = true;
+        } else if (saved === 'false') {
+          cb.checked = false;
+        } else if (cb.checked) {
+          count++;
         }
       }
       const pct = Math.round((count / 9) * 100);
