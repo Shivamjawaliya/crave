@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { HealthController } from './health/health.controller';
 import { GatewaySocketGateway } from './proxy/gateway.gateway';
 import { GatewayAuthController } from './auth/gateway-auth.controller';
+import { GatewayRestaurantsController } from './restaurants/gateway-restaurants.controller';
 
 @Module({
   imports: [
@@ -11,7 +12,11 @@ import { GatewayAuthController } from './auth/gateway-auth.controller';
       envFilePath: ['.env', '../../.env'],
     }),
   ],
-  controllers: [HealthController, GatewayAuthController],
+  controllers: [
+    HealthController,
+    GatewayAuthController,
+    GatewayRestaurantsController,
+  ],
   providers: [GatewaySocketGateway],
 })
 export class AppModule {}
