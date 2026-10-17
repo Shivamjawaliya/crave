@@ -41,7 +41,7 @@ setTimeout(() => {
   console.log('🌐 Crave Production Runner: Starting API Gateway on public port...');
   const gateway = spawn('node', ['services/api-gateway/dist/main.js'], {
     stdio: 'inherit',
-    env: process.env, // Needs public PORT provided by Render
+    env: { ...process.env, MICROSERVICES_MANAGED: 'true' }, // Needs public PORT provided by Render
   });
 
   gateway.on('error', (err) => {
