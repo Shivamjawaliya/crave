@@ -12,13 +12,11 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm --recursive run build
-    startCommand: node services/api-gateway/dist/main.js
+    buildCommand: pnpm install && pnpm run build:gateway
+    startCommand: node scripts/start-all-production.js
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3001
       - key: GATEWAY_PORT
         value: 3001
       - key: DATABASE_URL

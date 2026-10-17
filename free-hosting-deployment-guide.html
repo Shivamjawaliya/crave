@@ -317,9 +317,29 @@
               <div class="font-mono text-xs text-slate-300">
                 Swagger Docs: <a href="https://crave-azza.onrender.com/api/docs" target="_blank" class="text-emerald-400 underline font-bold">https://crave-azza.onrender.com/api/docs</a>
               </div>
-              <div class="mt-2 pt-2 border-t border-emerald-500/20 text-[11px] text-emerald-200">
-                💡 <strong>Render Start Command:</strong> <code class="text-white font-mono bg-slate-900 px-1.5 py-0.5 rounded">node scripts/start-all-production.js</code> (Runs Auth, Restaurant, Order, and Delivery microservices together on your free instance).
+            </div>
+
+            <!-- Crucial Render Settings update -->
+            <div class="p-4 bg-amber-950/30 rounded-2xl border border-amber-500/30 space-y-3">
+              <div class="flex items-center gap-2 text-amber-300 font-bold text-sm">
+                <span>⚠️ Crucial: Update Render Service Settings to Fix 503 Errors</span>
               </div>
+              <p class="text-slate-300">
+                In Render Dashboard &rarr; Your Service (<strong>crave</strong>) &rarr; <strong>Settings</strong> tab, make sure these two fields are set:
+              </p>
+              <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-[11px] space-y-2 text-white">
+                <div>
+                  <span class="text-slate-400 block font-sans text-[10px] font-bold uppercase">Build Command:</span>
+                  <code class="text-emerald-400">pnpm install && pnpm run build:gateway</code>
+                </div>
+                <div>
+                  <span class="text-slate-400 block font-sans text-[10px] font-bold uppercase">Start Command:</span>
+                  <code class="text-emerald-400">node scripts/start-all-production.js</code>
+                </div>
+              </div>
+              <p class="text-slate-400 text-[11px]">
+                Click <strong>"Save Changes"</strong>, then click <strong>"Manual Deploy" &rarr; "Deploy latest commit"</strong>. This launches all 6 internal microservices concurrently within Render's single free 512MB container.
+              </p>
             </div>
           </div>
         </div>
@@ -335,49 +355,40 @@
 
         <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <input type="checkbox" id="free-step-7" onchange="toggleFreeStep(7)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+            <input type="checkbox" id="free-step-7" onchange="toggleFreeStep(7)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer" checked>
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Step 3.1</span>
-              <h3 class="text-lg font-black text-white">Deploy Customer Web App on Vercel</h3>
+              <h3 class="text-lg font-black text-white">Customer Web App (Live on Vercel 🎉)</h3>
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>1. Go to <a href="https://vercel.com" target="_blank" class="text-emerald-400 underline font-bold">vercel.com</a> $\to$ Click <strong>"Add New Project"</strong> $\to$ Import your GitHub repository.</p>
-            <p>2. In the <strong>Project Settings</strong> modal:</p>
-            <ul class="list-disc list-inside space-y-1.5 pl-2 font-mono">
-              <li><strong>Framework Preset:</strong> Next.js</li>
-              <li><strong>Root Directory:</strong> Click "Edit" $\to$ select <span class="text-emerald-400 font-bold">apps/customer-web</span></li>
-            </ul>
-            <p>3. Under <strong>Environment Variables</strong>, add:</p>
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400">
-              NEXT_PUBLIC_GATEWAY_URL = https://crave-azza.onrender.com/api/v1<br>
-              NEXT_PUBLIC_SOCKET_URL = https://crave-azza.onrender.com
+            <div class="p-3 bg-slate-950 rounded-xl border border-emerald-500/30 font-mono text-emerald-400 text-[11px]">
+              ✅ Live URL: <a href="https://crave-blue.vercel.app" target="_blank" class="underline font-bold">https://crave-blue.vercel.app</a>
             </div>
-            <p>4. Click <strong>"Deploy"</strong>!</p>
-            <p class="text-slate-400">Vercel compiles the app and gives you a free live URL: <code class="text-emerald-400 font-bold">https://crave-food.vercel.app</code>.</p>
           </div>
         </div>
 
         <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4">
           <div class="flex items-center gap-3">
-            <input type="checkbox" id="free-step-8" onchange="toggleFreeStep(8)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer">
+            <input type="checkbox" id="free-step-8" onchange="toggleFreeStep(8)" class="w-6 h-6 rounded-lg text-emerald-500 bg-slate-800 border-slate-700 focus:ring-emerald-500 cursor-pointer" checked>
             <div>
               <span class="text-[10px] uppercase font-bold tracking-wider text-emerald-400">Step 3.2</span>
-              <h3 class="text-lg font-black text-white">Deploy Restaurant KDS & Driver Apps on Vercel</h3>
+              <h3 class="text-lg font-black text-white">Kitchen KDS, Driver & Admin Portals (Live on Vercel 🎉)</h3>
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>In Vercel, click <strong>"Add New Project"</strong> again for each remaining dashboard:</p>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-1">
-                <strong class="text-white block">Restaurant Dashboard</strong>
-                <span class="text-slate-400 block font-mono">Root Directory: apps/restaurant-dashboard</span>
-                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_GATEWAY_URL = https://crave-azza.onrender.com/api/v1</span>
+                <strong class="text-white block">Restaurant KDS</strong>
+                <a href="https://crave-restaurant-dashboard.vercel.app" target="_blank" class="text-emerald-400 underline font-mono text-[11px] block">crave-restaurant-dashboard.vercel.app</a>
               </div>
               <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-1">
                 <strong class="text-white block">Delivery Partner Portal</strong>
-                <span class="text-slate-400 block font-mono">Root Directory: apps/delivery-dashboard</span>
-                <span class="text-emerald-400 font-mono text-[11px] block">Env: NEXT_PUBLIC_API_URL = https://crave-azza.onrender.com/api/v1</span>
+                <a href="https://crave-delivery-dashboard.vercel.app" target="_blank" class="text-emerald-400 underline font-mono text-[11px] block">crave-delivery-dashboard.vercel.app</a>
+              </div>
+              <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-1">
+                <strong class="text-white block">Super-Admin Console</strong>
+                <a href="https://crave-admin-dashboard.vercel.app" target="_blank" class="text-emerald-400 underline font-mono text-[11px] block">crave-admin-dashboard.vercel.app</a>
               </div>
             </div>
           </div>
@@ -392,13 +403,14 @@
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>In your Render Dashboard $\to$ <code class="text-emerald-400">crave</code> $\to$ Environment Variables, update your CORS origins:</p>
-            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400 space-y-1">
-              <div>WEB_ORIGIN = https://crave-food.vercel.app</div>
-              <div>RESTAURANT_DASHBOARD_ORIGIN = https://restaurant-kds.vercel.app</div>
-              <div>DELIVERY_DASHBOARD_ORIGIN = https://driver-portal.vercel.app</div>
+            <p>In Render Dashboard &rarr; <strong>crave</strong> service &rarr; <strong>Environment</strong> tab, add/update these 4 variables:</p>
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400 space-y-1 text-[11px]">
+              <div>WEB_ORIGIN = https://crave-blue.vercel.app</div>
+              <div>RESTAURANT_DASHBOARD_ORIGIN = https://crave-restaurant-dashboard.vercel.app</div>
+              <div>DELIVERY_DASHBOARD_ORIGIN = https://crave-delivery-dashboard.vercel.app</div>
+              <div>ADMIN_DASHBOARD_ORIGIN = https://crave-admin-dashboard.vercel.app</div>
             </div>
-            <p class="text-slate-400">Render will automatically restart the API with your live frontend domains whitelisted!</p>
+            <p class="text-slate-400">Render will automatically restart with full cross-origin credentials enabled for your live frontend domains!</p>
           </div>
         </div>
 
