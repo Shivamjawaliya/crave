@@ -1,0 +1,19 @@
+{
+  "name": "@food-platform/validation",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@food-platform/shared-types": "workspace:*",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@food-platform/tsconfig": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

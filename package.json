@@ -1,0 +1,31 @@
+{
+  "name": "food-platform-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Food Delivery and Restaurant Management Platform Monorepo",
+  "scripts": {
+    "dev": "pnpm --parallel --filter \"./apps/*\" dev",
+    "dev:api": "pnpm --filter api dev",
+    "dev:customer": "pnpm --filter customer-web dev",
+    "dev:restaurant": "pnpm --filter restaurant-dashboard dev",
+    "dev:delivery": "pnpm --filter delivery-dashboard dev",
+    "dev:admin": "pnpm --filter admin-dashboard dev",
+    "build": "pnpm --recursive run build",
+    "lint": "pnpm --recursive run lint",
+    "test": "pnpm --recursive run test",
+    "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
+    "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:studio": "prisma studio --schema=./prisma/schema.prisma",
+    "prisma:seed": "ts-node ./prisma/seed.ts",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.19.3",
+    "prettier": "^3.5.0",
+    "prisma": "^6.19.3",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@11.21.0"
+}
