@@ -2,6 +2,9 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Patch,
+  Delete,
   Body,
   Param,
   Headers,
@@ -83,5 +86,54 @@ export class AuthController {
   @ApiOperation({ summary: 'Get user profile by ID' })
   getProfile(@Param('id') id: string) {
     return this.authService.getProfile(id);
+  }
+
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Update user profile' })
+  updateProfile(@Param('id') id: string, @Body() body: { name?: string }) {
+    return this.authService.updateProfile(id, body);
+  }
+
+  @Get('users/:id/addresses')
+  @ApiOperation({ summary: 'Get all saved addresses for a user' })
+  getAddresses(@Param('id') id: string) {
+    return this.authService.getAddresses(id);
+  }
+
+  @Post('users/:id/addresses')
+  @ApiOperation({ summary: 'Add a new address for a user' })
+  addAddress(
+    @Param('id') id: string,
+    @Body()
+    body: {
+      label?: string;
+      addressLine: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      isDefault?: boolean;
+      latitude?: number;
+      longitude?: number;
+    },
+  ) {
+    return this.authService.addAddress(id, body);
+  }
+
+  @Put('users/:id/addresses/:addressId/default')
+  @ApiOperation({ summary: 'Set an address as default' })
+  setDefaultAddress(
+    @Param('id') id: string,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.authService.setDefaultAddress(id, addressId);
+  }
+
+  @Delete('users/:id/addresses/:addressId')
+  @ApiOperation({ summary: 'Delete a saved address' })
+  deleteAddress(
+    @Param('id') id: string,
+    @Param('addressId') addressId: string,
+  ) {
+    return this.authService.deleteAddress(id, addressId);
   }
 }

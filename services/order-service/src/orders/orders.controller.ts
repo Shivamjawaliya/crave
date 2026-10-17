@@ -20,6 +20,12 @@ export class OrdersController {
     return this.ordersService.createOrder(body.customerId, body);
   }
 
+  @Get('customer/:customerId')
+  @ApiOperation({ summary: 'Get all orders for a customer' })
+  getCustomerOrders(@Param('customerId') customerId: string) {
+    return this.ordersService.getCustomerOrders(customerId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order details' })
   findOrder(@Param('id') id: string) {

@@ -25,7 +25,9 @@ import {
   Star,
 } from 'lucide-react';
 import NavbarAuth from '../../components/NavbarAuth';
+import AddressModal from '../../components/AddressModal';
 import { useCartStore } from '../../lib/store';
+import { useAddressStore } from '../../lib/address.store';
 
 export default function CartCheckoutPage() {
   const router = useRouter();
@@ -38,6 +40,8 @@ export default function CartCheckoutPage() {
     clearCart,
     getSubtotalPaise,
   } = useCartStore();
+
+  const { selectedAddress, openModal } = useAddressStore();
 
   // Step 1: Drop-off preference
   const [dropoffMode, setDropoffMode] = useState<'meet' | 'leave'>('leave');
@@ -96,40 +100,61 @@ export default function CartCheckoutPage() {
 
   const handlePlaceOrder = async () => {
     setIsPlacingOrder(true);
-    const mockOrderNum = `CRV-${Math.floor(100000 + Math.random() * 900000)}`;
+    let finalOrderNum = `ORD-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     try {
-      // Primary: Post to Order Microservice via Gateway if items exist
       if (restaurantId && cartItems.length > 0) {
         const primaryUrl =
           process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1/orders';
 
-        await fetch(primaryUrl, {
+        let customerId = 'cmvboqiq80004p42mmluqhyvt';
+        try {
+          const stored = localStorage.getItem('user');
+          if (stored) {
+            const u = JSON.parse(stored);
+            if (u.id) customerId = u.id;
+          }
+        } catch {
+          // ignore
+        }
+
+        const res = await fetch(primaryUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            customerId,
             restaurantId,
             items: cartItems.map((i) => ({
               menuItemId: i.menuItemId,
               quantity: i.quantity,
-              pricePaise: i.pricePaise,
             })),
-            deliveryAddress: {
-              addressLine: '742 Evergreen Terrace, Apt 4B',
-              city: 'Metropolis',
+            address: {
+              label: selectedAddress.label,
+              addressLine: selectedAddress.addressLine,
+              city: selectedAddress.city,
+              state: selectedAddress.state,
+              pincode: selectedAddress.pincode,
               instructions,
             },
-            totalPaise: Math.round(totalAmount * 100),
           }),
-        }).catch(() => null);
+        });
+
+        if (res.ok) {
+          const orderData = await res.json();
+          if (orderData.orderNumber) {
+            finalOrderNum = orderData.orderNumber;
+          }
+        }
       }
+    } catch (err) {
+      console.error('Order placement error:', err);
     } finally {
       setTimeout(() => {
         setIsPlacingOrder(false);
-        setPlacedOrderNumber(mockOrderNum);
+        setPlacedOrderNumber(finalOrderNum);
         setOrderSuccess(true);
         clearCart();
-      }, 1200);
+      }, 1000);
     }
   };
 
@@ -148,17 +173,23 @@ export default function CartCheckoutPage() {
               </span>
             </Link>
 
-            <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-slate-200">
-              <div className="w-8 h-8 rounded-full bg-[#ffdbd1] flex items-center justify-center text-[#ab2f00]">
+            <button
+              type="button"
+              onClick={openModal}
+              className="hidden lg:flex items-center gap-2 pl-4 border-l border-slate-200 hover:opacity-80 transition text-left cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#ffdbd1] flex items-center justify-center text-[#ab2f00] group-hover:scale-105 transition-transform">
                 <MapPin className="w-4 h-4" />
               </div>
               <div className="flex flex-col text-left">
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Deliver to
                 </span>
-                <span className="text-xs font-bold text-[#161c23]">742 Evergreen Terr, 4B</span>
+                <span className="text-xs font-bold text-[#161c23] truncate max-w-[170px]">
+                  {selectedAddress.addressLine} ▾
+                </span>
               </div>
-            </div>
+            </button>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-bold text-slate-700">
@@ -215,7 +246,9 @@ export default function CartCheckoutPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Delivery Address</span>
-                <span className="font-bold text-slate-800">742 Evergreen Terr, Apt 4B</span>
+                <span className="font-bold text-slate-800 truncate max-w-[200px]">
+                  {selectedAddress.addressLine}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Payment Mode</span>
@@ -261,28 +294,39 @@ export default function CartCheckoutPage() {
                 </div>
               </div>
 
-              <button className="text-xs font-bold text-[#ab2f00] hover:underline">
+              <button
+                type="button"
+                onClick={openModal}
+                className="text-xs font-bold text-[#ab2f00] hover:underline cursor-pointer"
+              >
                 Edit
               </button>
             </div>
 
             {/* Address Box */}
-            <div className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80">
-              <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#ab2f00] shrink-0 mt-0.5">
+            <div
+              onClick={openModal}
+              className="flex items-start gap-3 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 cursor-pointer hover:border-[#ab2f00]/50 transition group"
+            >
+              <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center text-[#ab2f00] shrink-0 mt-0.5 group-hover:bg-[#ffdbd1] transition-colors">
                 <MapPin className="w-5 h-5" />
               </div>
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-xs text-slate-900">Home</span>
-                  <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">
-                    Default
+                  <span className="font-extrabold text-xs text-slate-900">
+                    {selectedAddress.label || 'Home'}
                   </span>
+                  {selectedAddress.isDefault && (
+                    <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded font-bold">
+                      Default
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-slate-700 font-semibold pt-0.5">
-                  742 Evergreen Terrace, Apt 4B
+                  {selectedAddress.addressLine}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  Springfield, OR 97477 • Intercom available
+                  {[selectedAddress.city, selectedAddress.state].filter(Boolean).join(', ')} {selectedAddress.pincode} • Intercom available
                 </p>
               </div>
             </div>
@@ -840,6 +884,9 @@ export default function CartCheckoutPage() {
           </div>
         </div>
       </footer>
+
+      {/* Address Management Modal */}
+      <AddressModal />
     </div>
   );
 }

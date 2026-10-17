@@ -103,4 +103,24 @@ export class OrdersService {
     if (!order) throw new NotFoundException('Order not found');
     return order;
   }
+
+  async getCustomerOrders(customerId: string) {
+    return this.prisma.order.findMany({
+      where: { customerId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: true,
+        payment: true,
+        delivery: true,
+        restaurant: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            address: true,
+          },
+        },
+      },
+    });
+  }
 }

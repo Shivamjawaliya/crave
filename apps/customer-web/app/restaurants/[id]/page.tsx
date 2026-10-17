@@ -25,7 +25,9 @@ import {
   MapPin,
 } from 'lucide-react';
 import NavbarAuth from '../../../components/NavbarAuth';
+import AddressModal from '../../../components/AddressModal';
 import { useCartStore } from '../../../lib/store';
+import { useAddressStore } from '../../../lib/address.store';
 
 interface MenuItem {
   id: string;
@@ -77,6 +79,9 @@ export default function RestaurantMenuPage() {
   const { items: cartItems, addItem, updateQuantity, removeItem, getSubtotalPaise } = useCartStore();
   const cartSubtotal = (getSubtotalPaise() / 100).toFixed(2);
   const totalCartCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
+
+  // Address Store
+  const { selectedAddress, openModal } = useAddressStore();
 
   useEffect(() => {
     async function fetchRestaurant() {
@@ -207,7 +212,14 @@ export default function RestaurantMenuPage() {
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Deliver to
                 </span>
-                <span className="text-xs font-bold text-[#161c23]">742 Evergreen Terr, 4B</span>
+                <button
+                  type="button"
+                  onClick={openModal}
+                  className="flex items-center gap-1 text-xs font-bold text-[#161c23] hover:text-[#ab2f00] transition cursor-pointer"
+                >
+                  <span className="truncate max-w-[150px]">{selectedAddress.addressLine}</span>
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           </div>
@@ -762,6 +774,9 @@ export default function RestaurantMenuPage() {
           </div>
         </div>
       </footer>
+
+      {/* Address Switcher Modal */}
+      <AddressModal />
     </div>
   );
 }

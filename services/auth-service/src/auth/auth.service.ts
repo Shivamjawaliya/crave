@@ -212,6 +212,117 @@ export class AuthService {
     return user;
   }
 
+  async getAddresses(userId: string) {
+    return this.prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async addAddress(
+    userId: string,
+    data: {
+      label?: string;
+      addressLine: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+      isDefault?: boolean;
+      latitude?: number;
+      longitude?: number;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const addressCount = await this.prisma.address.count({ where: { userId } });
+    const shouldBeDefault = data.isDefault ?? addressCount === 0;
+
+    if (shouldBeDefault) {
+      await this.prisma.address.updateMany({
+        where: { userId },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.address.create({
+      data: {
+        userId,
+        label: data.label?.trim() || 'Home',
+        addressLine: data.addressLine.trim(),
+        city: data.city?.trim() || 'Springfield',
+        state: data.state?.trim() || 'OR',
+        pincode: data.pincode?.trim() || '97477',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        isDefault: shouldBeDefault,
+      },
+    });
+  }
+
+  async setDefaultAddress(userId: string, addressId: string) {
+    const address = await this.prisma.address.findFirst({
+      where: { id: addressId, userId },
+    });
+    if (!address) throw new NotFoundException('Address not found');
+
+    await this.prisma.address.updateMany({
+      where: { userId },
+      data: { isDefault: false },
+    });
+
+    return this.prisma.address.update({
+      where: { id: addressId },
+      data: { isDefault: true },
+    });
+  }
+
+  async deleteAddress(userId: string, addressId: string) {
+    const address = await this.prisma.address.findFirst({
+      where: { id: addressId, userId },
+    });
+    if (!address) throw new NotFoundException('Address not found');
+
+    await this.prisma.address.delete({
+      where: { id: addressId },
+    });
+
+    if (address.isDefault) {
+      const remaining = await this.prisma.address.findFirst({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (remaining) {
+        await this.prisma.address.update({
+          where: { id: remaining.id },
+          data: { isDefault: true },
+        });
+      }
+    }
+
+    return { success: true, message: 'Address deleted successfully' };
+  }
+
+  async updateProfile(userId: string, data: { name?: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.name ? { name: data.name.trim() } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+  }
+
   private async generateTokens(userId: string, email: string, role: string) {
     const secret = this.configService.get<string>(
       'JWT_ACCESS_SECRET',

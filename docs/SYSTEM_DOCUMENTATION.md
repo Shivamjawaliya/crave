@@ -405,3 +405,33 @@ pnpm test             # Runs test suites
 ### 7. Interactive Swagger Documentation
 Open in your browser:
 **`http://localhost:3001/api/docs`**
+
+---
+
+## 8. Customer Address Management, Orders & Profile System
+
+### Address Persistence & Selector Architecture
+- **Database Schema**: Full PostgreSQL relational persistence in `Address` entity (`userId`, `label`, `addressLine`, `city`, `state`, `pincode`, `isDefault`, `createdAt`).
+- **REST Endpoints (Proxied via API Gateway `http://localhost:3001/api/v1/users/:id/addresses`)**:
+  - `GET /users/:id/addresses`: Retrieves all saved customer addresses ordered by `isDefault DESC`.
+  - `POST /users/:id/addresses`: Creates an address and automatically handles default flags.
+  - `PUT /users/:id/addresses/:addressId/default`: Atomically updates default address.
+  - `DELETE /users/:id/addresses/:addressId`: Removes saved address with auto-fallback promotion.
+- **Frontend Address Store (`useAddressStore`)**:
+  - Manages active delivery destination state persisted to `localStorage` (`crave_selected_address`).
+  - Synced across Navbar header, Restaurant detail menu, Checkout Cart, and Customer Profile.
+- **Interactive Address Modal (`AddressModal.tsx`)**:
+  - Accessible via "DELIVER TO" in the navbar, Step 1 on `/cart`, and `/profile`.
+  - Supports switching active address, adding new addresses with custom labels, setting defaults, and deleting addresses.
+
+### Past Orders & Live Tracking (`/orders`)
+- **Backend Service**: `order-service` exposing `GET /orders/customer/:customerId` via API Gateway.
+- **Order Details**: Order number, timestamp, restaurant metadata, itemized quantities and totals, complete delivery address snapshot (`addressSnapshot`), and price breakdown (subtotal, delivery fee, GST).
+- **Interactive Features**: 4-stage visual status stepper (Placed ➔ In Kitchen ➔ Out for Delivery ➔ Delivered) and 1-click "Order Again" button that populates the cart and redirects to checkout.
+
+### Customer Profile (`/profile`)
+- **Profile Management**: Displays customer name, email, verified `CUSTOMER` RBAC role badge, and account join date.
+- **Inline Editing**: Allows updating profile name directly to PostgreSQL via `PATCH /users/:id`.
+- **Address Manager**: Full management interface to view all saved addresses, select active address, promote defaults, and delete entries.
+- **Account Stats**: Live counter of total lifetime orders and saved addresses.
+
