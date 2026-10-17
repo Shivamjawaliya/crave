@@ -1,0 +1,45 @@
+# ==============================================================================
+# RENDER BLUEPRINT (render.yaml) — 100% Free Tier Deployment
+# ==============================================================================
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. Unified API Gateway & Microservices Runner (Free Web Service)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: food-platform-api
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm --recursive run build
+    startCommand: node services/api-gateway/dist/main.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: GATEWAY_PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false # Set in Render dashboard (e.g. from Supabase / Neon)
+      - key: REDIS_URL
+        sync: false # Set in Render dashboard (e.g. from Upstash)
+      - key: RABBITMQ_URL
+        sync: false # Set in Render dashboard (e.g. from CloudAMQP)
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false # e.g. https://crave-food.vercel.app
+      - key: RESTAURANT_DASHBOARD_ORIGIN
+        sync: false # e.g. https://restaurant-kds.vercel.app
+      - key: DELIVERY_DASHBOARD_ORIGIN
+        sync: false # e.g. https://driver-portal.vercel.app
+      - key: ADMIN_DASHBOARD_ORIGIN
+        sync: false # e.g. https://admin-food.vercel.app

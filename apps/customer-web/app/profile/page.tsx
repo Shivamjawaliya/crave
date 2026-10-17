@@ -58,9 +58,11 @@ export default function CustomerProfilePage() {
     setDefaultAddress,
     deleteAddress,
     selectAddress,
+    hydrateFromStorage,
   } = useAddressStore();
 
   useEffect(() => {
+    hydrateFromStorage();
     async function loadData() {
       try {
         const stored = localStorage.getItem('user');
@@ -193,7 +195,10 @@ export default function CustomerProfilePage() {
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Deliver to
                 </span>
-                <span className="text-xs font-bold text-[#161c23] truncate max-w-[170px]">
+                <span
+                  suppressHydrationWarning
+                  className="text-xs font-bold text-[#161c23] truncate max-w-[170px]"
+                >
                   {selectedAddress.addressLine} ▾
                 </span>
               </div>

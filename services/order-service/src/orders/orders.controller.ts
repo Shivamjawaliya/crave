@@ -40,7 +40,22 @@ export class OrdersController {
 
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update order lifecycle' })
-  updateStatus(@Param('id') id: string, @Body() body: { status: OrderStatus; actorId?: string }) {
-    return this.ordersService.updateStatus(id, body.status, body.actorId);
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status: OrderStatus; changedBy?: string; actorId?: string },
+  ) {
+    return this.ordersService.updateStatus(id, body.status, body.changedBy, body.actorId);
+  }
+
+  @Post(':id/accept')
+  @ApiOperation({ summary: 'Accept incoming order (Restaurant)' })
+  acceptOrder(@Param('id') id: string) {
+    return this.ordersService.updateStatus(id, OrderStatus.ACCEPTED, 'RESTAURANT');
+  }
+
+  @Get(':id/logs')
+  @ApiOperation({ summary: 'Get order status logs timeline' })
+  getOrderLogs(@Param('id') id: string) {
+    return this.ordersService.getOrderLogs(id);
   }
 }

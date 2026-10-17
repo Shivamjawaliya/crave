@@ -46,8 +46,11 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(data.password, 10);
 
-    // RBAC: Enforce CUSTOMER role for portal registrations
-    const assignedRole = UserRole.CUSTOMER;
+    // RBAC: Support CUSTOMER and DELIVERY_PARTNER registrations
+    const validRoles = [UserRole.CUSTOMER, UserRole.DELIVERY_PARTNER];
+    const assignedRole = (data.role && validRoles.includes(data.role as UserRole))
+      ? (data.role as UserRole)
+      : UserRole.CUSTOMER;
 
     const user = await this.prisma.user.create({
       data: {
@@ -66,6 +69,19 @@ export class AuthService {
         createdAt: true,
       },
     });
+
+    let deliveryProfile: any = null;
+    if (assignedRole === UserRole.DELIVERY_PARTNER) {
+      deliveryProfile = await this.prisma.deliveryProfile.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          vehicleType: (data as any).vehicleType || 'Motorcycle',
+          isAvailable: true,
+        },
+      });
+    }
 
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     return {
@@ -162,6 +178,7 @@ export class AuthService {
         restaurants: {
           select: { id: true, name: true, address: true, description: true },
         },
+        deliveryProfile: true,
       },
     });
 
@@ -195,6 +212,7 @@ export class AuthService {
         email: user.email,
         role: user.role,
         restaurant,
+        deliveryProfile: user.deliveryProfile,
       },
       ...tokens,
     };

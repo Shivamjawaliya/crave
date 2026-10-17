@@ -1,0 +1,1267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Driver Dispatching &amp; Restaurant → Rider Handover</title>
+<style>
+  :root {
+    --ink: #14171a;
+    --ink-soft: #4a5259;
+    --ink-faint: #7b858d;
+    --bg: #fbfaf7;
+    --card: #ffffff;
+    --line: #e3e0d8;
+    --line-soft: #efede7;
+    --accent: #b4541d;
+    --accent-soft: #fdf0e8;
+    --teal: #1d6b63;
+    --teal-soft: #e9f4f2;
+    --amber: #8a6100;
+    --amber-soft: #fdf5e0;
+    --red: #a32c2c;
+    --red-soft: #fdeceb;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 64px 28px 120px;
+  }
+
+  /* ---------- header ---------- */
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+
+  h1 {
+    font-size: 44px;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
+    font-weight: 700;
+    margin: 0 0 18px;
+  }
+
+  h1 .arrow {
+    color: var(--accent);
+    font-weight: 400;
+  }
+
+  .lede {
+    font-size: 19px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 680px;
+    margin: 0 0 40px;
+  }
+
+  .meta {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 24px;
+  }
+
+  /* ---------- summary ---------- */
+
+  .tldr {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 4px;
+    padding: 24px 28px;
+    margin: 40px 0 8px;
+  }
+
+  .tldr h3 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+
+  .tldr ul { margin: 0; padding-left: 20px; }
+  .tldr li { margin-bottom: 8px; color: var(--ink-soft); }
+  .tldr li:last-child { margin-bottom: 0; }
+  .tldr strong { color: var(--ink); }
+
+  /* ---------- sections ---------- */
+
+  section { margin-top: 80px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 8px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .sec-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    flex: 0 0 auto;
+    padding-top: 6px;
+  }
+
+  h2 {
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    margin: 0;
+    font-weight: 650;
+  }
+
+  .sec-sub {
+    color: var(--ink-faint);
+    font-size: 15px;
+    margin: 12px 0 32px;
+    max-width: 660px;
+  }
+
+  h3 {
+    font-size: 18px;
+    margin: 40px 0 12px;
+    letter-spacing: -0.01em;
+    font-weight: 650;
+  }
+
+  h4 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-faint);
+    margin: 28px 0 10px;
+    font-weight: 600;
+  }
+
+  p { margin: 0 0 16px; }
+  p.narrow { max-width: 680px; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: #f1efe9;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #2b2f33;
+  }
+
+  /* ---------- flow diagram ---------- */
+
+  .diagram {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 32px 24px;
+    margin: 28px 0;
+    overflow-x: auto;
+  }
+
+  .diagram-caption {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-faint);
+    letter-spacing: 0.05em;
+    text-align: center;
+    margin-top: 20px;
+  }
+
+  .lane {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: nowrap;
+    min-width: 640px;
+  }
+
+  .node {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    min-width: 130px;
+    background: #fdfcf9;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .node .n-title {
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.3;
+  }
+
+  .node .n-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-faint);
+    line-height: 1.35;
+  }
+
+  .node.hl { background: var(--accent-soft); border-color: #e8c4ae; }
+  .node.hl .n-title { color: var(--accent); }
+  .node.good { background: var(--teal-soft); border-color: #bfded9; }
+  .node.good .n-title { color: var(--teal); }
+  .node.data { background: #f4f3ee; border-style: dashed; }
+
+  .edge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    min-width: 74px;
+    gap: 4px;
+  }
+
+  .edge .e-label {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--ink-faint);
+    text-align: center;
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+
+  .edge .e-arrow {
+    color: var(--ink-faint);
+    font-size: 15px;
+    line-height: 1;
+  }
+
+  .stack { display: flex; flex-direction: column; gap: 16px; }
+
+  /* ---------- swimlane ---------- */
+
+  .swim {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--card);
+    margin: 28px 0;
+  }
+
+  .swim-head {
+    padding: 12px 18px;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 650;
+    border-bottom: 1px solid var(--line);
+    background: #f6f4ee;
+  }
+
+  .swim-head.rider { color: var(--teal); }
+  .swim-head.kitchen { color: var(--accent); border-left: 1px solid var(--line); }
+
+  .swim-row { display: contents; }
+
+  .cell {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 14px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .cell:nth-child(odd) { border-right: 1px solid var(--line-soft); }
+  .cell.empty { background: #fcfbf8; }
+
+  .step-num {
+    flex: 0 0 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .cell.ghost .step-num { visibility: hidden; }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap { overflow-x: auto; margin: 24px 0; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
+    background: var(--card);
+    border: 1px solid var(--line);
+  }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+    background: #f8f6f1;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 13px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+    color: var(--ink-soft);
+  }
+
+  tr:last-child td { border-bottom: none; }
+  td strong { color: var(--ink); font-weight: 600; }
+  td code { font-size: 12px; }
+
+  /* ---------- callouts ---------- */
+
+  .callout {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 18px 22px;
+    margin: 24px 0;
+    background: var(--card);
+    font-size: 15px;
+  }
+
+  .callout .c-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .callout p:last-child { margin-bottom: 0; }
+
+  .callout.warn { background: var(--amber-soft); border-color: #ecd9a6; }
+  .callout.warn .c-label { color: var(--amber); }
+
+  .callout.bad { background: var(--red-soft); border-color: #f2c9c6; }
+  .callout.bad .c-label { color: var(--red); }
+
+  .callout.good { background: var(--teal-soft); border-color: #bfded9; }
+  .callout.good .c-label { color: var(--teal); }
+
+  .callout.note { background: #f7f6f2; }
+  .callout.note .c-label { color: var(--ink-faint); }
+
+  /* ---------- phone mock ---------- */
+
+  .phone-wrap {
+    display: flex;
+    gap: 32px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    margin: 28px 0;
+  }
+
+  .phone {
+    width: 260px;
+    border: 2px solid #22262a;
+    border-radius: 26px;
+    background: #14171a;
+    padding: 10px;
+    flex: 0 0 auto;
+  }
+
+  .phone-screen {
+    background: #ffffff;
+    border-radius: 18px;
+    padding: 18px 16px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ph-badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    color: #fff;
+    background: var(--accent);
+    padding: 3px 8px;
+    border-radius: 3px;
+    align-self: flex-start;
+  }
+
+  .ph-title { font-size: 15px; font-weight: 700; line-height: 1.3; }
+  .ph-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-soft); }
+  .ph-row b { color: var(--ink); }
+  .ph-div { height: 1px; background: var(--line-soft); margin: 2px 0; }
+  .ph-earn {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--teal);
+    letter-spacing: -0.02em;
+  }
+  .ph-timer {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 6px 10px;
+    border-radius: 4px;
+    text-align: center;
+  }
+  .ph-btn {
+    margin-top: auto;
+    background: #1d6b63;
+    color: #fff;
+    text-align: center;
+    padding: 12px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  .ph-btn.ghost {
+    background: #fff;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  .phone-notes { flex: 1 1 320px; min-width: 280px; }
+  .phone-notes ul { padding-left: 18px; margin: 0 0 16px; }
+  .phone-notes li { margin-bottom: 10px; color: var(--ink-soft); font-size: 15px; }
+
+  /* ---------- misc ---------- */
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 28px 0;
+  }
+
+  .compare .card {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--card);
+    padding: 22px;
+  }
+
+  .compare .card.winner { border-color: #bfded9; background: var(--teal-soft); }
+  .compare .card h5 {
+    margin: 0 0 6px;
+    font-size: 15px;
+    font-weight: 650;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .compare .card .tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #eceae3;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+  .compare .card.winner .tag { background: #cfe8e3; color: var(--teal); }
+  .compare .card p { font-size: 14px; color: var(--ink-soft); margin-bottom: 12px; }
+  .compare .card ul { font-size: 14px; padding-left: 18px; margin: 0; color: var(--ink-soft); }
+  .compare .card li { margin-bottom: 6px; }
+
+  ol.steps { padding-left: 0; counter-reset: s; list-style: none; margin: 24px 0; }
+  ol.steps > li {
+    counter-increment: s;
+    position: relative;
+    padding-left: 46px;
+    margin-bottom: 22px;
+    color: var(--ink-soft);
+  }
+  ol.steps > li::before {
+    content: counter(s, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 1px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    border: 1px solid #e8c4ae;
+    background: var(--accent-soft);
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ol.steps > li strong { color: var(--ink); }
+
+  ul.plain { padding-left: 20px; color: var(--ink-soft); }
+  ul.plain li { margin-bottom: 10px; }
+
+  .pill {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #eceae3;
+    color: var(--ink-soft);
+    margin-right: 6px;
+  }
+  .pill.red { background: #f7d9d6; color: var(--red); }
+  .pill.amber { background: #f6e7bf; color: var(--amber); }
+  .pill.teal { background: #cfe8e3; color: var(--teal); }
+
+  footer {
+    margin-top: 100px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink-faint);
+    line-height: 1.7;
+  }
+
+  @media (max-width: 720px) {
+    .page { padding: 40px 18px 80px; }
+    h1 { font-size: 32px; }
+    .lede { font-size: 17px; }
+    h2 { font-size: 23px; }
+    .compare { grid-template-columns: 1fr; }
+    .swim { grid-template-columns: 1fr; }
+    .swim-head.kitchen { border-left: none; }
+    .cell:nth-child(odd) { border-right: none; }
+    .cell.kcell { border-top: 2px solid var(--line); }
+  }
+
+  @media print {
+    body { background: #fff; font-size: 11pt; }
+    .page { max-width: 100%; padding: 0; }
+    .diagram, .callout, table, .phone, .compare .card { break-inside: avoid; }
+    section { break-inside: avoid-page; margin-top: 40px; }
+    .phone { border-color: #999; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="kicker">Delivery Operations · Reference</div>
+
+  <h1>Driver Dispatching<br /><span class="arrow">&amp;</span> Restaurant → Rider Handover</h1>
+
+  <p class="lede">
+    How a nearby rider receives an order request, how many riders see it at once,
+    and what happens at the restaurant counter when the food changes hands — explained
+    in plain English, with block diagrams, and measured against what your code actually does today.
+  </p>
+
+  <div class="meta">
+    <span>Self-contained HTML</span>
+    <span>No external scripts</span>
+    <span>Print / save as PDF</span>
+    <span>Grounded in <code>fooapp</code></span>
+  </div>
+
+  <div class="tldr">
+    <h3>The short version</h3>
+    <ul>
+      <li><strong>Dispatching is a matchmaking problem with a timer.</strong> The system finds riders near the restaurant, offers the job to one of them, and gives them roughly 25–30 seconds to say yes.</li>
+      <li><strong>Cascading (one rider at a time) is the industry default.</strong> Broadcasting to five riders at once feels faster but causes "fastest finger" frustration and is dangerous for people already riding.</li>
+      <li><strong>The handover is a physical trust problem, not a technical one.</strong> A 4-digit PIN proves the rider who shows up is the rider who was assigned. The database transaction is the easy part.</li>
+      <li><strong>Your repo has the handover UI but not the dispatch logic.</strong> Jobs are listed to every rider with no distance filter, the PIN has a hardcoded fallback (<code>4821</code>), and confirming pickup marks the order <code>DELIVERED</code>. Section 06 covers this in detail.</li>
+    </ul>
+  </div>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2>The big picture</h2>
+    </div>
+    <p class="sec-sub">Five moving parts: the rider's phone, a location store, a dispatch engine, the kitchen screen, and the customer's app. Everything else is plumbing between them.</p>
+
+    <div class="diagram">
+      <div class="stack">
+        <!-- row 1: input -->
+        <div class="lane">
+          <div class="node">
+            <div class="n-title">Rider App</div>
+            <div class="n-sub">GPS ping every 5s</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">lat/lng</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node data">
+            <div class="n-title">Location store</div>
+            <div class="n-sub">Redis GEO / Postgres</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">index</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node hl">
+            <div class="n-title">Dispatch engine</div>
+            <div class="n-sub">rank · offer · expire</div>
+          </div>
+        </div>
+
+        <!-- row 2: trigger into dispatch -->
+        <div class="lane" style="margin-top: 4px;">
+          <div class="node good">
+            <div class="n-title">Kitchen KDS</div>
+            <div class="n-sub">marks food ready</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">order.ready</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node data">
+            <div class="n-title">Event bus</div>
+            <div class="n-sub">RabbitMQ topic</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">consume</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node hl">
+            <div class="n-title">Dispatch engine</div>
+            <div class="n-sub">starts a round</div>
+          </div>
+        </div>
+
+        <!-- row 3: offer out -->
+        <div class="lane" style="margin-top: 4px;">
+          <div class="node hl">
+            <div class="n-title">Dispatch engine</div>
+            <div class="n-sub">picks one rider</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">push</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node">
+            <div class="n-title">Rider App</div>
+            <div class="n-sub">30s accept timer</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">accept</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node data">
+            <div class="n-title">Delivery row</div>
+            <div class="n-sub">ASSIGNED</div>
+          </div>
+          <div class="edge">
+            <div class="e-label">notify</div>
+            <div class="e-arrow">→</div>
+          </div>
+          <div class="node good">
+            <div class="n-title">Customer App</div>
+            <div class="n-sub">rider assigned</div>
+          </div>
+        </div>
+      </div>
+      <div class="diagram-caption">Figure 1 — from a GPS ping and a "food ready" signal to an assigned rider</div>
+    </div>
+
+    <p class="narrow">
+      Read the diagram top to bottom. The first row is a <em>continuous background process</em> — it runs whether or not any order exists.
+      The second row fires once per order. The third row is the actual offer, and it is the only part with a human decision in it.
+    </p>
+
+    <h3>Why the trigger is "food is nearly ready", not "order was placed"</h3>
+    <p class="narrow">
+      If you dispatch the moment an order is placed, the rider sits at the restaurant for ten minutes while the kitchen cooks.
+      They earn nothing for that time, the customer sees a rider standing still, and the rider learns to decline your orders.
+      Dispatching when the food is <code>READY_FOR_PICKUP</code> — or a couple of minutes before, using average prep time — means
+      the rider arrives roughly when the bag hits the counter.
+    </p>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2>How a rider sees the request</h2>
+    </div>
+    <p class="sec-sub">Three separate things have to be true before an order appears on a phone: the rider's position must be known, the food must be ready, and the rider must be idle.</p>
+
+    <h3>Step 1 — The rider's phone keeps reporting its position</h3>
+    <p class="narrow">
+      While the rider is "online", the driver app sends its latitude and longitude every 5–10 seconds.
+      That is a heartbeat: a small, frequent message. The server stores it in a place designed for spatial queries, so
+      "who is within 3 km of this restaurant?" is a fast lookup rather than a loop over every rider.
+    </p>
+    <p class="narrow">
+      With Redis, this is two commands. <code>GEOADD</code> writes a rider's position into a sorted set.
+      <code>GEOSEARCH</code> asks for everyone inside a radius. Redis also lets you sort the results by distance from a
+      point, which is exactly what the dispatcher needs.
+    </p>
+
+    <div class="callout note">
+      <div class="c-label">What counts as "available"</div>
+      <p>
+        Position is only half of it. A rider standing outside the restaurant might be off-shift, already carrying two orders,
+        or on a break. The dispatcher filters on <em>availability</em> too — usually an <code>isAvailable</code> flag plus a cap
+        on active deliveries per rider. Position alone will happily offer a job to someone with four bags on the bike.
+      </p>
+    </div>
+
+    <h3>Step 2 — The kitchen marks the food ready</h3>
+    <p class="narrow">
+      This is an internal event, not a user action on the rider's phone. The kitchen taps "Ready" on the KDS,
+      the order service records that and publishes something like <code>order.ready_for_pickup</code> to the message broker,
+      and the dispatch engine reacts by starting a round for that order.
+    </p>
+    <p class="narrow">
+      The broker matters here for a practical reason: if the dispatch engine is restarting, the message waits in the queue.
+      If you called the dispatch engine directly over HTTP and it was down, the order would simply never get a rider — silently.
+    </p>
+
+    <h3>Step 3 — The offer appears on one phone</h3>
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="ph-badge">NEW ORDER</div>
+          <div class="ph-title">Spicy Bites</div>
+          <div class="ph-row"><span>Pickup</span><b>0.8 km</b></div>
+          <div class="ph-div"></div>
+          <div class="ph-row"><span>Drop</span><b>3.2 km</b></div>
+          <div class="ph-row"><span>Total trip</span><b>4.0 km</b></div>
+          <div class="ph-div"></div>
+          <div class="ph-row"><span>Estimated earnings</span></div>
+          <div class="ph-earn">₹65.00</div>
+          <div class="ph-timer">⏳ Accepts in 28s</div>
+          <div class="ph-btn">Accept order</div>
+          <div class="ph-btn ghost">Decline</div>
+        </div>
+      </div>
+      <div class="phone-notes">
+        <p>Every element on this screen exists to answer one question fast: <em>is this trip worth taking?</em></p>
+        <ul>
+          <li><strong>Pickup distance</strong> — how far they must ride to the food, unpaid or barely paid.</li>
+          <li><strong>Drop distance</strong> — how long the paid leg is.</li>
+          <li><strong>Earnings</strong> — the single number they optimise for. Show it plainly; hiding it trains riders to decline.</li>
+          <li><strong>Timer</strong> — a countdown they can see. Without it, "expired" feels like a bug rather than a rule.</li>
+        </ul>
+        <p style="font-size:14px; color: var(--ink-faint);">
+          The countdown must be driven by the server, not the phone clock. A rider who changes their device time
+          should not get an extra minute.
+        </p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <div class="c-label">One detail that ruins the feature if missed</div>
+      <p>
+        The offer screen must survive the rider's phone being locked or the app being backgrounded. That means a real
+        push notification (FCM/APNs) with a high-priority channel, plus a ringing sound — not just a WebSocket message.
+        A WebSocket only works while the app is open in the foreground. If you build the offer on WebSockets alone,
+        riders will miss most of their orders and conclude the app is broken.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2>How many riders get the notification?</h2>
+    </div>
+    <p class="sec-sub">Two models. They differ in one decision: does one rider get a protected window, or do several race?</p>
+
+    <div class="compare">
+      <div class="card winner">
+        <h5>Cascading <span class="tag">Recommended</span></h5>
+        <p>Offer to the single best rider. Wait 25–30 seconds. If declined or expired, move to the next rider in the ranked list.</p>
+        <ul>
+          <li><strong>For:</strong> no racing, no false hope, safe for riders in motion.</li>
+          <li><strong>For:</strong> you can explain to a rider exactly why they did or didn't get the order.</li>
+          <li><strong>Against:</strong> if the first three riders all ignore their phone, assignment is slow.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h5>Batch broadcast <span class="tag">Faster, worse</span></h5>
+        <p>Send to the top 3–5 riders at once. First to tap Accept wins.</p>
+        <ul>
+          <li><strong>For:</strong> very fast acceptance when plenty of riders are nearby.</li>
+          <li><strong>Against:</strong> four people did the work of deciding and got nothing.</li>
+          <li><strong>Against:</strong> encourages riders to tap while riding.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>What "best rider" means</h3>
+    <p class="narrow">Cascading needs a ranking, or you are just picking a random neighbour. In practice it is a weighted score, not a single distance sort:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Signal</th><th>Why it matters</th><th>Typical weight</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Distance to restaurant</strong></td>
+            <td>The dominant factor. Short pickup means faster delivery and a happier rider.</td>
+            <td>High</td>
+          </tr>
+          <tr>
+            <td><strong>Idle / on-shift</strong></td>
+            <td>A rider already mid-delivery cannot collect this order.</td>
+            <td>Hard filter</td>
+          </tr>
+          <tr>
+            <td><strong>Active delivery count</strong></td>
+            <td>Cap it. One or two concurrent orders is normal; five is a broken experience.</td>
+            <td>Hard filter</td>
+          </tr>
+          <tr>
+            <td><strong>Acceptance rate</strong></td>
+            <td>Riders who ignore offers get deprioritised over time.</td>
+            <td>Medium</td>
+          </tr>
+          <tr>
+            <td><strong>Rating</strong></td>
+            <td>Matters for customer experience, but should not starve new riders of work.</td>
+            <td>Low</td>
+          </tr>
+          <tr>
+            <td><strong>Vehicle type</strong></td>
+            <td>A bicycle cannot realistically take a 7 km order.</td>
+            <td>Medium</td>
+          </tr>
+          <tr>
+            <td><strong>Time since last offer</strong></td>
+            <td>Spreads work fairly; prevents one rider absorbing every order.</td>
+            <td>Low–medium</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>The state machine behind a single offer</h3>
+    <p class="narrow">
+      Each offer is a row with a lifetime, and each step is a transition. Getting this small machine right is most of the work —
+      the rest is distance math.
+    </p>
+
+    <div class="diagram">
+      <div class="lane">
+        <div class="node data">
+          <div class="n-title">OFFERED</div>
+          <div class="n-sub">sent to rider 1</div>
+        </div>
+        <div class="edge">
+          <div class="e-label">accept</div>
+          <div class="e-arrow">→</div>
+        </div>
+        <div class="node good">
+          <div class="n-title">ACCEPTED</div>
+          <div class="n-sub">rider locked in</div>
+        </div>
+        <div class="edge">
+          <div class="e-label">arrives</div>
+          <div class="e-arrow">→</div>
+        </div>
+        <div class="node hl">
+          <div class="n-title">AT STORE</div>
+          <div class="n-sub">KDS shows rider</div>
+        </div>
+      </div>
+      <div style="height: 22px;"></div>
+      <div class="lane">
+        <div class="node data">
+          <div class="n-title">OFFERED</div>
+          <div class="n-sub">timer running</div>
+        </div>
+        <div class="edge">
+          <div class="e-label">decline / timeout</div>
+          <div class="e-arrow">→</div>
+        </div>
+        <div class="node" style="background:#f4f3ee;">
+          <div class="n-title">EXPIRED</div>
+          <div class="n-sub">try next rider</div>
+        </div>
+        <div class="edge">
+          <div class="e-label">no riders left</div>
+          <div class="e-arrow">→</div>
+        </div>
+        <div class="node" style="background: var(--red-soft); border-color:#f2c9c6;">
+          <div class="n-title">UNASSIGNED</div>
+          <div class="n-sub">flag for manual ops</div>
+        </div>
+      </div>
+      <div class="diagram-caption">Figure 2 — an offer either converts or cascades; running out of candidates needs an explicit outcome</div>
+    </div>
+
+    <div class="callout bad">
+      <div class="c-label">The bug that always appears here</div>
+      <p>
+        Two workers can process the same expiry at the same time and both offer the job to two different riders.
+        Or a rider accepts at the same moment the timer fires. The fix is the same in both cases: the expiry and the
+        acceptance must both be <strong>conditional writes</strong> — "update this row to ACCEPTED <em>only if</em> it is
+        still OFFERED to me". Whichever write lands second updates zero rows and loses cleanly. Never read the row,
+        decide, then write. Your current <code>acceptJob</code> does exactly the read-decide-write version; see section 06.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2>The Restaurant → Rider handover</h2>
+    </div>
+    <p class="sec-sub">The rider is at the counter and the food is in a bag. This is the moment where a wrong bag or a stolen order can happen, and no amount of good software fixes it unless the two people check something together.</p>
+
+    <div class="swim">
+      <div class="swim-head rider">🛵 Delivery partner</div>
+      <div class="swim-head kitchen">🍳 Kitchen staff</div>
+
+      <div class="cell">
+        <span class="step-num">1</span>
+        <span>Arrives at the restaurant and taps <strong>"Arrived"</strong> in the app.</span>
+      </div>
+      <div class="cell kcell">
+        <span class="step-num">2</span>
+        <span>The KDS now shows <em>"Marcus is at the counter"</em> on that order's card.</span>
+      </div>
+
+      <div class="cell">
+        <span class="step-num">3</span>
+        <span>Shows the phone screen: order number <strong>#ORD-1234</strong> and a 4-digit pickup code.</span>
+      </div>
+      <div class="cell kcell">
+        <span class="step-num">4</span>
+        <span>Matches the number against the bag label on the shelf.</span>
+      </div>
+
+      <div class="cell">
+        <span class="step-num">5</span>
+        <span>Reads out the code, e.g. <strong>4 8 2 1</strong>.</span>
+      </div>
+      <div class="cell kcell">
+        <span class="step-num">6</span>
+        <span>Types the code into the KDS and confirms the handover.</span>
+      </div>
+
+      <div class="cell empty"></div>
+      <div class="cell kcell" style="border-bottom:none;">
+        <span class="step-num">7</span>
+        <span>Server validates the code, writes the status change, and the customer's app buzzes:<br /><em>"Your food is on the way."</em></span>
+      </div>
+    </div>
+
+    <h3>Why a PIN at all?</h3>
+    <p class="narrow">
+      The order number on the rider's screen is visible to anyone who glances at it. The PIN is not. It proves two things at once:
+      that this rider is the one the system assigned, and that the staff member handed the bag to a real person rather than
+      leaving it on a shelf. It also creates a record — "collected at 8:14pm by rider X, verified by staff Y" — which is what
+      you need when a customer says the food never arrived.
+    </p>
+    <p class="narrow">
+      The same idea appears at the other end of the trip: the customer gives the rider a delivery PIN, or the rider photographs
+      the drop. Both exist for the same reason — a moment where a physical handover needs a digital witness.
+    </p>
+
+    <h3>What the database should record</h3>
+    <p class="narrow">
+      The handover is one transaction. It is not a status update plus a log plus a notification sent separately — if any of
+      those fail, you end up with an order that says "picked up" and a customer who was never told.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Write</th><th>What it captures</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>order.status = PICKED_UP</code></td><td>The order has left the restaurant.</td></tr>
+          <tr><td><code>delivery.status = PICKED_UP</code>, <code>picked_up_at</code></td><td>Which rider holds it and when.</td></tr>
+          <tr><td>Status history row</td><td>Who changed it (<code>RESTAURANT</code>), from what, to what, when — the audit trail.</td></tr>
+          <tr><td>Outbox row</td><td><code>OrderPickedUp</code>, to be published to the broker by a relay.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p class="narrow">
+      The outbox is the one piece people skip and later regret. If you publish to RabbitMQ <em>after</em> committing, and the
+      publish fails, the event is gone and nothing retries it. If you publish <em>inside</em> the transaction and the transaction
+      rolls back, you have told the customer about a pickup that did not happen. Writing the event into a table in the same
+      transaction, and letting a small poller publish it afterwards, solves both.
+    </p>
+
+    <h3>Two extra handover states worth having</h3>
+    <ul class="plain">
+      <li><strong>At store.</strong> The rider arrives but the food is not ready. Without this state, the rider has no button to press and the kitchen has no signal that a human is waiting.</li>
+      <li><strong>Handover failed.</strong> Wrong PIN, wrong bag, food cold, rider refuses. This needs a real outcome — not a silent timer — because someone has to decide whether to remake the order or refund it.</li>
+    </ul>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2>Technologies, and what each one actually buys you</h2>
+    </div>
+    <p class="sec-sub">The list is conventional. What matters is <em>why</em> each piece is there — most of them can be replaced, but not with nothing.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Step</th><th>Job to be done</th><th>Typical tool</th><th>Why that tool</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. GPS tracking</strong></td>
+            <td>Answer "who is near this restaurant?" in milliseconds</td>
+            <td>Redis Geospatial</td>
+            <td>Purpose-built radius and distance queries. Postgres with PostGIS also works; plain lat/lng columns do not scale to radius search.</td>
+          </tr>
+          <tr>
+            <td><strong>2. Dispatch trigger</strong></td>
+            <td>Start a round exactly when food is ready, without losing the signal if a service restarts</td>
+            <td>RabbitMQ topic exchange</td>
+            <td>Durable queues mean a restarted dispatcher still sees the "ready" message.</td>
+          </tr>
+          <tr>
+            <td><strong>3. Ranking</strong></td>
+            <td>Pick the best rider from the eligible set</td>
+            <td>Node.js / Go service</td>
+            <td>Ordinary application logic. No special tooling needed — it is arithmetic plus a database read.</td>
+          </tr>
+          <tr>
+            <td><strong>4. Offer delivery</strong></td>
+            <td>Make a phone ring even when the app is closed</td>
+            <td>FCM / APNs + WebSocket</td>
+            <td>Push wakes a backgrounded phone; sockets update the screen once it is open. You need both.</td>
+          </tr>
+          <tr>
+            <td><strong>5. Acceptance</strong></td>
+            <td>Ensure exactly one rider wins the job</td>
+            <td>Postgres conditional update</td>
+            <td>A transaction plus a version/status guard. The database is the arbiter, not the app.</td>
+          </tr>
+          <tr>
+            <td><strong>6. Handover verification</strong></td>
+            <td>Prove the right rider took the right bag</td>
+            <td>PIN in KDS, server-side check</td>
+            <td>Simple, works offline-ish, no hardware. QR scanning is a nice upgrade, not a requirement.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout note">
+      <div class="c-label">A caution about the tools</div>
+      <p>
+        Every row in that table can be replaced by something simpler: Postgres instead of Redis, polling instead of push,
+        a database transaction instead of a broker. What cannot be removed is the <em>requirement</em> — you still need
+        a fast proximity query, a reliable offer, exactly-one acceptance, and a verifiable handover. Choose the simplest tool
+        that satisfies the requirement, and only upgrade when you have a measurement that says the simple one fails.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2>What your repo does today</h2>
+    </div>
+    <p class="sec-sub">This is measured against the code, not the diagram above. Several of the pieces are genuinely there; several of the diagrams above are still aspirations.</p>
+
+    <h3>What exists and works</h3>
+    <ul class="plain">
+      <li><strong>Delivery and location models.</strong> <code>Delivery</code> with <code>UNASSIGNED → ASSIGNED → ACCEPTED → PICKED_UP → IN_TRANSIT → DELIVERED</code>, and <code>DeliveryLocation</code> for GPS points.</li>
+      <li><strong>Order status enum.</strong> Includes <code>READY_FOR_PICKUP</code>, <code>PICKED_UP</code>, <code>OUT_FOR_DELIVERY</code> — the states the handover needs.</li>
+      <li><strong>Realtime plumbing.</strong> The gateway consumes <code>food_events</code> with binding <code>order.#</code> and pushes updates to clients. The order service publishes <code>order.&lt;status&gt;</code> on every transition.</li>
+      <li><strong>KDS PIN entry UI.</strong> A modal with code entry and an error state — the interface half of the handover.</li>
+      <li><strong>Delivery endpoints.</strong> <code>GET /delivery/jobs</code>, <code>POST /jobs/:id/accept</code>, <code>PATCH /jobs/:id/status</code>, <code>POST /jobs/:id/location</code>.</li>
+    </ul>
+
+    <h3>Gaps between the diagram and the code</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Area</th><th>What the diagram needs</th><th>What the code does</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Proximity search</strong></td>
+            <td>Find idle riders within 3 km, sorted by distance</td>
+            <td><code>getAvailableJobs()</code> returns <em>every</em> <code>UNASSIGNED</code> delivery to <em>every</em> rider, newest first. No distance, no radius, no rider position involved at all.</td>
+          </tr>
+          <tr>
+            <td><strong>Dispatch trigger</strong></td>
+            <td>Start a round when the kitchen marks ready</td>
+            <td>No dispatch engine and no consumer of a ready event. Riders discover work by polling the jobs list.</td>
+          </tr>
+          <tr>
+            <td><strong>Offer lifecycle</strong></td>
+            <td>Offer to one rider, with a 30s timer and cascade</td>
+            <td>No offer records, no timer, no cascade. Acceptance is first-write-wins against a shared list.</td>
+          </tr>
+          <tr>
+            <td><strong>Accept race</strong></td>
+            <td>Exactly one rider wins</td>
+            <td><code>acceptJob</code> reads the row inside a transaction, checks status, then updates. Two concurrent accepts can both pass the check. A conditional <code>updateMany</code> guarded on <code>status = UNASSIGNED</code> is the fix.</td>
+          </tr>
+          <tr>
+            <td><strong>GPS storage</strong></td>
+            <td>Latest position per rider, queryable by radius</td>
+            <td><code>recordLocation()</code> appends a row to <code>delivery_location</code> on every ping. That table grows without bound and cannot answer "who is near here" without a full scan.</td>
+          </tr>
+          <tr>
+            <td><strong>Status propagation</strong></td>
+            <td>One owner for order state, one published event</td>
+            <td><code>DeliveryService.updateStatus</code> writes <code>order.status</code> <em>directly</em>, skipping the order service's transition rules and publishing nothing. The customer's realtime update never fires for pickups.</td>
+          </tr>
+          <tr>
+            <td><strong>Handover PIN</strong></td>
+            <td>Server-generated per order, validated server-side</td>
+            <td>The KDS builds <code>expectedPin</code> from <code>addressSnapshot?.verificationCode</code> — which nothing generates — falling back to <code>'4821'</code>. The check is <code>pinInput === expectedPin || pinInput === '4821'</code>, so <code>4821</code> always works. The code is also printed in plain text on the KDS card.</td>
+          </tr>
+          <tr>
+            <td><strong>Handover outcome</strong></td>
+            <td>Pickup moves the order to <code>PICKED_UP</code></td>
+            <td>A successful PIN entry calls <code>handleAction(order.id, 'DELIVERED')</code> — the order jumps straight to delivered while the food is still on the counter.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout bad">
+      <div class="c-label">The two that will bite hardest</div>
+      <p>
+        <strong>1. The universal PIN.</strong> <code>'4821'</code> bypasses verification entirely, so the handover check currently
+        proves nothing. Anyone who reads the code can collect any order.
+      </p>
+      <p>
+        <strong>2. Pickup marking as delivered.</strong> Confirming the handover sets the order to <code>DELIVERED</code>,
+        which means the delivery leg is skipped and the customer is told their food arrived before it left the restaurant.
+      </p>
+    </div>
+
+    <div class="callout warn">
+      <div class="c-label">A design smell worth fixing early</div>
+      <p>
+        Two services now write <code>order.status</code>: the order service through its validated <code>updateStatus</code>, and the
+        delivery service directly. Once more than one place owns a field, the transition rules stop being a rule.
+        The delivery service should ask the order service to make the change, or publish an event the order service consumes —
+        not write the column itself.
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <section>
+    <div class="sec-head">
+      <span class="sec-num">07</span>
+      <h2>What to build, in what order</h2>
+    </div>
+    <p class="sec-sub">Each step is useful on its own and does not depend on the next one. Do them in this order and you always have something that works.</p>
+
+    <ol class="steps">
+      <li>
+        <strong>Fix the handover before building dispatching.</strong>
+        Generate a real per-order PIN when the order is created, store it, validate it server-side, and change the success path
+        to move the order to <code>PICKED_UP</code>. This is small, it closes a live correctness hole, and it makes the KDS
+        honest. Everything else is an optimisation on top.
+      </li>
+      <li>
+        <strong>Make acceptance atomic.</strong>
+        Replace the read-check-write in <code>acceptJob</code> with a single conditional update guarded on
+        <code>status = UNASSIGNED</code>, inside the transaction. Treat zero updated rows as "another rider got it".
+        Two riders, one winner — without a lock.
+      </li>
+      <li>
+        <strong>Give order status a single owner.</strong>
+        Stop writing <code>order.status</code> from the delivery service. Either call the order service or publish an event it consumes,
+        so every transition goes through <code>isValidOrderTransition</code> and every change is published to the broker.
+      </li>
+      <li>
+        <strong>Add the outbox.</strong>
+        One table, one poller, for order status events. Without it, a broker hiccup means a customer never learns their food is coming.
+      </li>
+      <li>
+        <strong>Then build proximity.</strong>
+        Start with PostGIS or a bounding-box query in Postgres and a proper "latest position per rider" table — you may never need
+        Redis. Prune old location rows; keep only the latest position plus trip history.
+      </li>
+      <li>
+        <strong>Only now build the cascading offer.</strong>
+        An <code>offers</code> table with <code>OFFERED / ACCEPTED / DECLINED / EXPIRED</code>, a server-side expiry job, and a
+        notifier that pushes to one rider at a time. This is the last piece because it is the one that depends on everything above.
+      </li>
+    </ol>
+
+    <div class="callout good">
+      <div class="c-label">The sanity check</div>
+      <p>
+        At every step, ask: <em>if the deliverable of this step were the only thing I shipped, would the system still be correct?</em>
+        Steps 1–4 each say yes. If a step only makes sense together with the next one, you have split it in the wrong place.
+      </p>
+    </div>
+  </section>
+
+  <footer>
+    <p>
+      Written for the <code>food-platform</code> monorepo. File references: <code>prisma/schema.prisma</code> (<code>OrderStatus</code>,
+      <code>DeliveryStatus</code>, <code>Delivery</code>, <code>DeliveryLocation</code>), <code>services/delivery-service/src/delivery/delivery.service.ts</code>,
+      <code>apps/restaurant-dashboard/components/LiveOrdersKdsView.tsx</code>, <code>services/order-service/src/orders/orders.service.ts</code>,
+      <code>services/api-gateway/src/proxy/gateway.gateway.ts</code>.
+    </p>
+    <p>
+      Sections 01–05 describe the general design. Section 06 describes the current code, which differs from that design in the ways listed.
+    </p>
+  </footer>
+
+</div>
+</body>
+</html>

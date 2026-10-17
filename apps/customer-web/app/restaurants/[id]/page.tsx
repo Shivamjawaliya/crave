@@ -81,9 +81,10 @@ export default function RestaurantMenuPage() {
   const totalCartCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
 
   // Address Store
-  const { selectedAddress, openModal } = useAddressStore();
+  const { selectedAddress, openModal, hydrateFromStorage } = useAddressStore();
 
   useEffect(() => {
+    hydrateFromStorage();
     async function fetchRestaurant() {
       if (!restaurantId) return;
       try {
@@ -140,7 +141,7 @@ export default function RestaurantMenuPage() {
     ].join(', ');
 
     addItem(restaurant.id, restaurant.name, {
-      menuItemId: `${selectedItem.id}-${Date.now()}`,
+      menuItemId: selectedItem.id,
       name: `${selectedItem.name} (${customizationNotes})`,
       pricePaise: finalPaise,
       imageUrl: selectedItem.imageUrl,
@@ -217,7 +218,7 @@ export default function RestaurantMenuPage() {
                   onClick={openModal}
                   className="flex items-center gap-1 text-xs font-bold text-[#161c23] hover:text-[#ab2f00] transition cursor-pointer"
                 >
-                  <span className="truncate max-w-[150px]">{selectedAddress.addressLine}</span>
+                  <span suppressHydrationWarning className="truncate max-w-[150px]">{selectedAddress.addressLine}</span>
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               </div>

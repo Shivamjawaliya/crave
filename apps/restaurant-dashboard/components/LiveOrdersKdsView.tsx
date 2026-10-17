@@ -84,7 +84,9 @@ export default function LiveOrdersKdsView({
 
   const handleVerifyPin = async (order: OrderData) => {
     const expectedPin =
-      order.addressSnapshot?.verificationCode || '4821';
+      order.addressSnapshot?.pickupOtp ||
+      order.addressSnapshot?.verificationCode ||
+      '4821';
 
     if (pinInput.trim() === expectedPin || pinInput.trim() === '4821') {
       setPinError(false);
@@ -375,11 +377,11 @@ export default function LiveOrdersKdsView({
                     <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         type="button"
-                        onClick={() => handleAction(order.id, 'PREPARING')}
+                        onClick={() => handleAction(order.id, 'ACCEPTED')}
                         className="py-2.5 px-3 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-md transition flex items-center justify-center gap-1.5"
                       >
                         <Check className="w-4 h-4" />
-                        <span>Accept (15m Prep)</span>
+                        <span>Accept Order</span>
                       </button>
 
                       <button
@@ -432,7 +434,7 @@ export default function LiveOrdersKdsView({
                           #{order.orderNumber}
                         </span>
                         <span className="px-2 py-0.5 rounded bg-surface-container text-on-surface text-[10px] font-mono font-semibold uppercase">
-                          Dine-In #0{idx + 1}
+                          {order.status === 'ACCEPTED' ? 'Accepted' : 'Cooking'}
                         </span>
                       </div>
                       <p className="text-[11px] text-on-surface-variant font-medium pt-0.5">
@@ -445,14 +447,18 @@ export default function LiveOrdersKdsView({
                         TIMER
                       </span>
                       <span className="text-sm font-mono font-bold text-primary">
-                        08:45 / 14:00
+                        {order.status === 'ACCEPTED' ? 'Queued' : '08:45 / 14:00'}
                       </span>
                     </div>
                   </div>
 
                   {/* Near target alert line */}
                   <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
-                    <div className="bg-primary h-full rounded-full w-[65%]"></div>
+                    <div
+                      className={`h-full rounded-full ${
+                        order.status === 'ACCEPTED' ? 'bg-amber-400 w-[20%]' : 'bg-primary w-[65%]'
+                      }`}
+                    ></div>
                   </div>
 
                   {/* Items List */}
@@ -476,15 +482,27 @@ export default function LiveOrdersKdsView({
                     ))}
                   </div>
 
-                  {/* Button */}
-                  <button
-                    type="button"
-                    onClick={() => handleAction(order.id, 'READY_FOR_PICKUP')}
-                    className="w-full py-2.5 px-4 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Mark Ready for Handover</span>
-                  </button>
+                  {/* Action Buttons based on lifecycle */}
+                  <div className="flex items-center gap-2">
+                    {order.status === 'ACCEPTED' && (
+                      <button
+                        type="button"
+                        onClick={() => handleAction(order.id, 'PREPARING')}
+                        className="flex-1 py-2.5 px-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                      >
+                        <Flame className="w-4 h-4" />
+                        <span>Start Cooking</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleAction(order.id, 'READY_FOR_PICKUP')}
+                      className="flex-1 py-2.5 px-4 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>Mark Ready</span>
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -571,12 +589,21 @@ export default function LiveOrdersKdsView({
                     <div className="space-y-2">
                       <div className="flex items-center justify-between text-xs font-mono font-semibold">
                         <span className="text-on-surface-variant">Pickup Verification Code:</span>
-                        <span className="text-sm tracking-widest text-on-surface bg-surface-container px-2 py-0.5 rounded">
-                          {order.addressSnapshot?.verificationCode || '4 8 2 1'}
+                        <span className="text-sm tracking-widest text-on-surface bg-surface-container px-2 py-0.5 rounded font-bold">
+                          {order.addressSnapshot?.pickupOtp || order.addressSnapshot?.verificationCode || '4 8 2 1'}
                         </span>
                       </div>
 
-                      {isVerifying ? (
+                      {order.status === 'OUT_FOR_DELIVERY' ? (
+                        <button
+                          type="button"
+                          onClick={() => handleAction(order.id, 'DELIVERED')}
+                          className="w-full py-2.5 px-4 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Confirm Order Delivered</span>
+                        </button>
+                      ) : isVerifying ? (
                         <div className="space-y-2 pt-1 animate-in fade-in">
                           <input
                             type="text"
@@ -613,14 +640,24 @@ export default function LiveOrdersKdsView({
                           </div>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => setVerifyingPinId(order.id)}
-                          className="w-full py-2.5 px-4 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
-                        >
-                          <UserCheck className="w-4 h-4" />
-                          <span>Verify PIN & Handover</span>
-                        </button>
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setVerifyingPinId(order.id)}
+                            className="w-full py-2.5 px-4 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
+                          >
+                            <UserCheck className="w-4 h-4" />
+                            <span>Verify PIN & Handover (Delivered)</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAction(order.id, 'OUT_FOR_DELIVERY')}
+                            className="w-full py-2 px-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-xs font-semibold transition flex items-center justify-center gap-1.5"
+                          >
+                            <Truck className="w-3.5 h-3.5 text-primary" />
+                            <span>Dispatch with Courier (Out for Delivery)</span>
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>

@@ -45,7 +45,7 @@ export default function OrderConfirmationModal({
           <div className="flex justify-between">
             <span className="text-slate-500 font-medium">Delivery Address</span>
             <span className="font-bold text-slate-800 truncate max-w-[200px]">
-              {selectedAddress.addressLine}
+              {selectedAddress?.addressLine || 'd/2 Nehru nagar, Bhopal, Madhya Pradesh 462001'}
             </span>
           </div>
           <div className="flex justify-between">

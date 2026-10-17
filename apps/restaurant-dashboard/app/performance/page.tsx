@@ -1,8 +1,6 @@
-'use client';
-
 import React from 'react';
-import RestaurantDashboardPage from '../page';
+import RestaurantDashboardView from '../../components/RestaurantDashboardView';
 
 export default function PerformanceRoute() {
-  return <RestaurantDashboardPage initialTab="performance-payouts" />;
+  return <RestaurantDashboardView initialTab="performance-payouts" />;
 }

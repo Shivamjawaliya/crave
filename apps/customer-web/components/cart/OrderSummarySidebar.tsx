@@ -87,7 +87,7 @@ export default function OrderSummarySidebar({
 
                 <div className="text-right shrink-0">
                   <span className="font-extrabold text-slate-900">
-                    ${((item.pricePaise * item.quantity) / 100).toFixed(2)}
+                    ₹{((item.pricePaise * item.quantity) / 100).toFixed(2)}
                   </span>
                   <div className="flex items-center gap-1 mt-1 justify-end">
                     <button
@@ -107,45 +107,32 @@ export default function OrderSummarySidebar({
               </div>
             ))
           ) : (
-            /* Default Preview Items matching Stitch Design */
+            /* Default Preview Items matching Juiy / Fresh Kitchen */
             <>
               <div className="flex items-start justify-between gap-3 text-xs border-b border-slate-100 pb-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-[#ab2f00]">1x</span>
-                    <h5 className="font-bold text-slate-900">Black Garlic Truffle Tonkotsu</h5>
+                    <h5 className="font-bold text-slate-900">Valencia Orange & Ginger Immunity Elixir</h5>
                   </div>
                   <span className="text-slate-500 text-[11px]">
-                    Firm noodles, Extra Tamago, Spicy Chili Crunch
+                    Fresh cold-pressed Valencia oranges, organic ginger root
                   </span>
                 </div>
-                <span className="font-extrabold text-slate-900">$22.25</span>
+                <span className="font-extrabold text-slate-900">₹229.00</span>
               </div>
 
               <div className="flex items-start justify-between gap-3 text-xs border-b border-slate-100 pb-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-[#ab2f00]">1x</span>
-                    <h5 className="font-bold text-slate-900">Pan-Seared Wagyu Gyoza</h5>
+                    <h5 className="font-bold text-slate-900">Alphonso Mango & Chia Seed Thick Shake</h5>
                   </div>
                   <span className="text-slate-500 text-[11px]">
-                    6 pcs, scallion soy dipping glaze
+                    Pure Ratnagiri Alphonso pulp, organic chia seeds
                   </span>
                 </div>
-                <span className="font-extrabold text-slate-900">$11.00</span>
-              </div>
-
-              <div className="flex items-start justify-between gap-3 text-xs border-b border-slate-100 pb-3">
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <span className="font-extrabold text-[#ab2f00]">1x</span>
-                    <h5 className="font-bold text-slate-900">Yuzu Sparkling Soda</h5>
-                  </div>
-                  <span className="text-slate-500 text-[11px]">
-                    Chilled, organic cane sugar
-                  </span>
-                </div>
-                <span className="font-extrabold text-slate-900">$4.50</span>
+                <span className="font-extrabold text-slate-900">₹279.00</span>
               </div>
             </>
           )}
@@ -154,53 +141,53 @@ export default function OrderSummarySidebar({
         {/* Calculations Breakdown */}
         <div className="space-y-2.5 text-xs text-slate-600 border-t border-slate-100 pt-3">
           <div className="flex justify-between">
-            <span>Subtotal ({cartItems.length > 0 ? cartItems.length : 3} items)</span>
-            <span className="font-bold text-slate-900">${subtotal.toFixed(2)}</span>
+            <span>Subtotal ({cartItems.length > 0 ? cartItems.length : 2} items)</span>
+            <span className="font-bold text-slate-900">₹{subtotal.toFixed(2)}</span>
           </div>
 
           {voucherApplied && (
             <div className="flex justify-between text-[#006c49] font-bold">
               <span>SAVOR10 Promo</span>
-              <span>-${discount.toFixed(2)}</span>
+              <span>-₹{discount.toFixed(2)}</span>
             </div>
           )}
 
           <div className="flex justify-between">
             <span>Delivery Fee</span>
-            <span className="font-bold text-slate-900">${deliveryFee.toFixed(2)}</span>
+            <span className="font-bold text-slate-900">₹{deliveryFee.toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between">
             <span>Service & Platform Fee</span>
-            <span className="font-bold text-slate-900">${platformFee.toFixed(2)}</span>
+            <span className="font-bold text-slate-900">₹{platformFee.toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between">
             <span>Courier Tip ({selectedTipPercent}%)</span>
-            <span className="font-bold text-slate-900">${tipAmount.toFixed(2)}</span>
+            <span className="font-bold text-slate-900">₹{tipAmount.toFixed(2)}</span>
           </div>
 
           <div className="flex justify-between">
-            <span>Estimated Taxes (5%)</span>
-            <span className="font-bold text-slate-900">${taxAmount.toFixed(2)}</span>
+            <span>Estimated Taxes (5% GST)</span>
+            <span className="font-bold text-slate-900">₹{taxAmount.toFixed(2)}</span>
           </div>
 
           {applyCraveCash && (
             <div className="flex justify-between text-[#ab2f00] font-bold">
               <span>Crave Cash Applied</span>
-              <span>-${craveCashDiscount.toFixed(2)}</span>
+              <span>-₹{craveCashDiscount.toFixed(2)}</span>
             </div>
           )}
 
           <div className="flex items-baseline justify-between text-base font-black text-slate-900 pt-3 border-t border-slate-200">
             <div>
-              <span className="block leading-none">Total</span>
+              <span className="block leading-none">Total Amount</span>
               <span className="text-[10px] font-normal text-slate-400 block pt-1">
-                Includes all fees & tip
+                Includes GST, delivery & tip
               </span>
             </div>
             <span className="text-2xl font-black text-[#ab2f00]">
-              ${totalAmount.toFixed(2)}
+              ₹{totalAmount.toFixed(2)}
             </span>
           </div>
         </div>
@@ -214,11 +201,11 @@ export default function OrderSummarySidebar({
           {isPlacingOrder ? (
             <>
               <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Transmitting to Kitchen...</span>
+              <span>Broadcasting to Kitchen via RabbitMQ...</span>
             </>
           ) : (
             <>
-              <span>Place Order • ${totalAmount.toFixed(2)}</span>
+              <span>Place Order • ₹{totalAmount.toFixed(2)}</span>
               <span>→</span>
             </>
           )}

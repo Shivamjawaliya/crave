@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
 import {
   Flame,
   ShoppingBag,
@@ -47,6 +48,11 @@ interface OrderAddressSnapshot {
   state?: string;
   pincode?: string;
   instructions?: string;
+  pickupOtp?: string;
+  deliveryOtp?: string;
+  customerPhone?: string;
+  verificationCode?: string;
+  callboxCode?: string;
 }
 
 interface Order {
@@ -75,37 +81,143 @@ export default function PastOrdersPage() {
   const cartSubtotal = (getSubtotalPaise() / 100).toFixed(2);
   const totalCartCount = cartItems.reduce((acc, i) => acc + i.quantity, 0);
 
-  const { selectedAddress, openModal } = useAddressStore();
+  const { selectedAddress, openModal, hydrateFromStorage } = useAddressStore();
+
+  const loadOrders = useCallback(async (currentUserId?: string) => {
+    try {
+      const uId = currentUserId || userId;
+      if (!uId) return;
+
+      const primaryUrl =
+        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1/orders';
+
+      const res = await fetch(`${primaryUrl}/customer/${uId}`);
+      if (res.ok) {
+        const data: Order[] = await res.json();
+        setOrders(data);
+      }
+    } catch (err) {
+      console.error('Failed to load past orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    async function loadOrders() {
+    hydrateFromStorage();
+    const stored = localStorage.getItem('user');
+    if (!stored) {
+      setLoading(false);
+      return;
+    }
+    const user = JSON.parse(stored);
+    setUserId(user.id);
+    loadOrders(user.id);
+  }, [loadOrders]);
+
+  const [sseConnected, setSseConnected] = useState(false);
+
+  // 1-way Scalable Server-Sent Events (SSE) Stream for Millions of Customers
+  useEffect(() => {
+    if (!userId) return;
+
+    const gatewayUrl =
+      process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+
+    const sseUrl = `${gatewayUrl}/orders/customer/${userId}/live`;
+    console.log('⚡ [Customer SSE] Connecting to native SSE stream:', sseUrl);
+
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onopen = () => {
+      console.log('⚡ [Customer SSE] Connected to Live Tracking Stream (SSE)');
+      setSseConnected(true);
+    };
+
+    eventSource.onmessage = (event) => {
       try {
-        const stored = localStorage.getItem('user');
-        if (!stored) {
-          setLoading(false);
-          return;
-        }
+        const data = JSON.parse(event.data);
+        if (data.type === 'connected') return;
 
-        const user = JSON.parse(stored);
-        setUserId(user.id);
+        console.log('⚡ [Customer SSE] Received order update via SSE stream:', data);
+        const targetOrderId = data.orderId || data.id;
+        const nextStatus = data.newStatus || data.status;
 
-        const primaryUrl =
-          process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1/orders';
-
-        const res = await fetch(`${primaryUrl}/customer/${user.id}`);
-        if (res.ok) {
-          const data: Order[] = await res.json();
-          setOrders(data);
+        if (targetOrderId && nextStatus) {
+          setOrders((prev) =>
+            prev.map((ord) =>
+              ord.id === targetOrderId ? { ...ord, status: nextStatus } : ord,
+            ),
+          );
         }
       } catch (err) {
-        console.error('Failed to load past orders:', err);
-      } finally {
-        setLoading(false);
+        console.warn('Failed to parse SSE payload:', err);
       }
-    }
+    };
 
-    loadOrders();
-  }, []);
+    eventSource.onerror = (err) => {
+      setSseConnected(false);
+      console.warn('⚡ [Customer SSE] Reconnecting...', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [userId]);
+
+  // Fallback Gateway WebSocket Listener
+  useEffect(() => {
+    const gatewaySocketUrl =
+      process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+
+    const socket: Socket = io(gatewaySocketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 10,
+    });
+
+    socket.on('connect', () => {
+      console.log('⚡ Customer connected to Gateway WebSocket (fallback)');
+      orders.forEach((o) => {
+        socket.emit('order:subscribe', { orderId: o.id });
+        socket.emit('join_order', { orderId: o.id });
+      });
+    });
+
+    socket.on('order_status_updated', (data: any) => {
+      console.log('⚡ [Customer WS] Real-time order_status_updated:', data);
+      const targetOrderId = data.orderId || data.id;
+      const nextStatus = data.newStatus || data.status;
+
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === targetOrderId ? { ...ord, status: nextStatus } : ord,
+        ),
+      );
+    });
+
+    socket.on('order:status', (data: any) => {
+      console.log('⚡ [Customer WS] Real-time order:status:', data);
+      const targetOrderId = data.orderId || data.id;
+      const nextStatus = data.newStatus || data.status;
+
+      setOrders((prev) =>
+        prev.map((ord) =>
+          ord.id === targetOrderId ? { ...ord, status: nextStatus } : ord,
+        ),
+      );
+    });
+
+    const interval = setInterval(() => {
+      if (userId) {
+        loadOrders(userId);
+      }
+    }, 6000);
+
+    return () => {
+      clearInterval(interval);
+      socket.disconnect();
+    };
+  }, [loadOrders, orders, userId]);
 
   const handleOrderAgain = (order: Order) => {
     if (!order.restaurant || !order.items) return;
@@ -127,10 +239,21 @@ export default function PastOrdersPage() {
           bg: 'bg-emerald-50 text-[#006c49] border-emerald-200',
           dot: 'bg-[#006c49]',
         };
+      case 'READY_FOR_PICKUP':
+        return {
+          label: 'Ready for Pickup',
+          bg: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+          dot: 'bg-emerald-500 animate-pulse',
+        };
       case 'PREPARING':
+        return {
+          label: 'Preparing in Kitchen',
+          bg: 'bg-amber-50 text-amber-800 border-amber-200',
+          dot: 'bg-amber-500 animate-pulse',
+        };
       case 'ACCEPTED':
         return {
-          label: 'In Kitchen',
+          label: 'Order Accepted',
           bg: 'bg-amber-50 text-amber-800 border-amber-200',
           dot: 'bg-amber-500 animate-pulse',
         };
@@ -153,6 +276,54 @@ export default function PastOrdersPage() {
           label: 'Order Confirmed',
           bg: 'bg-blue-50 text-blue-700 border-blue-200',
           dot: 'bg-blue-500',
+        };
+    }
+  };
+
+  const getStatusTrackerInfo = (status: string) => {
+    switch (status) {
+      case 'PLACED':
+      case 'PENDING_PAYMENT':
+        return {
+          text: 'Order placed — awaiting kitchen confirmation',
+          step: 1,
+        };
+      case 'ACCEPTED':
+        return {
+          text: 'Restaurant is preparing your food',
+          step: 2,
+        };
+      case 'PREPARING':
+        return {
+          text: 'Restaurant is preparing your food',
+          step: 2,
+        };
+      case 'READY_FOR_PICKUP':
+        return {
+          text: 'Food prepared & packaged — awaiting courier pickup',
+          step: 3,
+        };
+      case 'PICKED_UP':
+      case 'OUT_FOR_DELIVERY':
+        return {
+          text: 'Courier is on the way to your doorstep 🛵',
+          step: 3,
+        };
+      case 'DELIVERED':
+        return {
+          text: 'Order delivered! Enjoy your meal 🎉',
+          step: 4,
+        };
+      case 'CANCELLED':
+      case 'REJECTED':
+        return {
+          text: 'Order cancelled',
+          step: 0,
+        };
+      default:
+        return {
+          text: 'Processing order...',
+          step: 1,
         };
     }
   };
@@ -184,7 +355,10 @@ export default function PastOrdersPage() {
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Deliver to
                 </span>
-                <span className="text-xs font-bold text-[#161c23] truncate max-w-[170px]">
+                <span
+                  suppressHydrationWarning
+                  className="text-xs font-bold text-[#161c23] truncate max-w-[170px]"
+                >
                   {selectedAddress.addressLine} ▾
                 </span>
               </div>
@@ -212,6 +386,12 @@ export default function PastOrdersPage() {
               <span className="text-[11px] font-extrabold uppercase tracking-wider text-[#ab2f00] bg-[#ffdbd1] px-3 py-1 rounded-full">
                 Account History
               </span>
+              {sseConnected && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-[#006c49] border border-emerald-200 text-[11px] font-extrabold tracking-wider uppercase animate-in fade-in">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#006c49] animate-pulse" />
+                  <span>Live Stream Active (SSE)</span>
+                </span>
+              )}
               <span className="text-xs text-slate-500 font-semibold">
                 {orders.length} {orders.length === 1 ? 'Order' : 'Orders'} Recorded
               </span>
@@ -394,10 +574,42 @@ export default function PastOrdersPage() {
                           </p>
                           <p className="text-[11px] text-slate-500">
                             {[order.addressSnapshot?.city, order.addressSnapshot?.state].filter(Boolean).join(', ')}{' '}
-                            {order.addressSnapshot?.pincode} • Intercom available
+                            {order.addressSnapshot?.pincode} • Contact: {order.addressSnapshot?.customerPhone || '+91 98260 12345'}
                           </p>
                         </div>
                       </div>
+
+                      {/* Customer Delivery Handover PIN (OTP) Badge */}
+                      {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'REJECTED' ? (
+                        <div className="mt-3 p-3.5 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-300/80 rounded-2xl flex items-center justify-between gap-3 shadow-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm">
+                              <ShieldCheck className="w-5 h-5" />
+                            </div>
+                            <div className="space-y-0.5">
+                              <span className="text-[10px] uppercase font-black tracking-wider text-amber-800 block">
+                                Delivery Verification PIN (OTP)
+                              </span>
+                              <p className="text-xs text-slate-700 font-medium">
+                                Share this PIN with your rider upon arrival:
+                              </p>
+                            </div>
+                          </div>
+                          <div className="px-3.5 py-1.5 bg-white border border-amber-300 rounded-xl font-mono font-black text-xl text-amber-900 tracking-widest shadow-sm">
+                            {order.addressSnapshot?.deliveryOtp || order.addressSnapshot?.callboxCode?.replace('#', '') || '4192'}
+                          </div>
+                        </div>
+                      ) : order.status === 'DELIVERED' ? (
+                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-800">
+                          <span className="flex items-center gap-1.5 font-bold">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                            Package verified & safely delivered
+                          </span>
+                          <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-emerald-200">
+                            PIN: {order.addressSnapshot?.deliveryOtp || order.addressSnapshot?.callboxCode?.replace('#', '') || '4192'}
+                          </span>
+                        </div>
+                      ) : null}
                     </div>
 
                     {/* Right: Payment & Status progression */}
@@ -432,41 +644,45 @@ export default function PastOrdersPage() {
                       </div>
 
                       {/* Live Progression Tracker */}
-                      <div className="pt-3 border-t border-slate-200/80 space-y-2">
-                        <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-600">
-                          <span>Order Status</span>
-                          <span className="text-[#006c49]">Verified by Kitchen</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1.5 pt-1">
-                          <div className="h-1.5 rounded-full bg-[#ab2f00]" title="Order Placed"></div>
-                          <div
-                            className={`h-1.5 rounded-full ${
-                              ['ACCEPTED', 'PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
-                                order.status,
-                              )
-                                ? 'bg-[#ab2f00]'
-                                : 'bg-slate-200'
-                            }`}
-                            title="Accepted"
-                          ></div>
-                          <div
-                            className={`h-1.5 rounded-full ${
-                              ['PREPARING', 'READY_FOR_PICKUP', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'].includes(
-                                order.status,
-                              )
-                                ? 'bg-[#ab2f00]'
-                                : 'bg-slate-200'
-                            }`}
-                            title="Preparing"
-                          ></div>
-                          <div
-                            className={`h-1.5 rounded-full ${
-                              order.status === 'DELIVERED' ? 'bg-[#006c49]' : 'bg-slate-200'
-                            }`}
-                            title="Delivered"
-                          ></div>
-                        </div>
-                      </div>
+                      {(() => {
+                        const tracker = getStatusTrackerInfo(order.status);
+                        return (
+                          <div className="pt-3 border-t border-slate-200/80 space-y-2">
+                            <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-600">
+                              <span>Order Status</span>
+                              <span className="text-[#ab2f00] font-bold transition-all">
+                                {tracker.text}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-1.5 pt-1">
+                              <div
+                                className={`h-1.5 rounded-full ${
+                                  tracker.step >= 1 ? 'bg-[#ab2f00]' : 'bg-slate-200'
+                                }`}
+                                title="Order Placed"
+                              ></div>
+                              <div
+                                className={`h-1.5 rounded-full transition-colors duration-500 ${
+                                  tracker.step >= 2 ? 'bg-[#ab2f00]' : 'bg-slate-200'
+                                }`}
+                                title="Accepted & Preparing"
+                              ></div>
+                              <div
+                                className={`h-1.5 rounded-full transition-colors duration-500 ${
+                                  tracker.step >= 3 ? 'bg-[#ab2f00]' : 'bg-slate-200'
+                                }`}
+                                title="Ready & En Route"
+                              ></div>
+                              <div
+                                className={`h-1.5 rounded-full transition-colors duration-500 ${
+                                  tracker.step >= 4 ? 'bg-[#006c49]' : 'bg-slate-200'
+                                }`}
+                                title="Delivered"
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>

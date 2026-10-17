@@ -42,7 +42,10 @@ export default function CartHeader({
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
                   Deliver to
                 </span>
-                <span className="text-xs font-bold text-[#161c23] truncate max-w-[170px]">
+                <span
+                  suppressHydrationWarning
+                  className="text-xs font-bold text-[#161c23] truncate max-w-[170px]"
+                >
                   {selectedAddress.addressLine} ▾
                 </span>
               </div>

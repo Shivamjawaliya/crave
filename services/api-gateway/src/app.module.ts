@@ -6,6 +6,8 @@ import { GatewayAuthController } from './auth/gateway-auth.controller';
 import { GatewayRestaurantsController } from './restaurants/gateway-restaurants.controller';
 import { GatewayUsersController } from './users/gateway-users.controller';
 import { GatewayOrdersController } from './orders/gateway-orders.controller';
+import { GatewayDeliveryController } from './delivery/gateway-delivery.controller';
+import { OrderSseService } from './orders/order-sse.service';
 
 @Module({
   imports: [
@@ -20,7 +22,8 @@ import { GatewayOrdersController } from './orders/gateway-orders.controller';
     GatewayRestaurantsController,
     GatewayUsersController,
     GatewayOrdersController,
+    GatewayDeliveryController,
   ],
-  providers: [GatewaySocketGateway],
+  providers: [GatewaySocketGateway, OrderSseService],
 })
 export class AppModule {}

@@ -33,14 +33,15 @@ export class GatewayAuthController {
       role?: string;
     },
   ) {
-    // RBAC Security Enforcement:
-    // Any registration via the public gateway / user portal is strictly restricted
-    // to role 'CUSTOMER'. Any requested role from the client is safely overridden.
+    // Allow CUSTOMER, DELIVERY_PARTNER, and RESTAURANT_OWNER registrations
+    const allowedRoles = ['CUSTOMER', 'DELIVERY_PARTNER', 'RESTAURANT_OWNER'];
+    const assignedRole = (body.role && allowedRoles.includes(body.role)) ? body.role : 'CUSTOMER';
     const safePayload = {
+      ...body,
       name: body.name,
       email: body.email,
       password: body.password,
-      role: 'CUSTOMER',
+      role: assignedRole,
     };
 
     try {

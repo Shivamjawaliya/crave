@@ -1,9 +1,6 @@
-'use client';
-
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import RestaurantDashboardPage from '../page';
+import React from 'react';
+import RestaurantDashboardView from '../../components/RestaurantDashboardView';
 
 export default function MenuRoute() {
-  return <RestaurantDashboardPage initialTab="menu-inventory" />;
+  return <RestaurantDashboardView initialTab="menu-inventory" />;
 }

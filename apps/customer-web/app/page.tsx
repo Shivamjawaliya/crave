@@ -80,10 +80,11 @@ export default function HomePage() {
   const cartSubtotal = (getSubtotalPaise() / 100).toFixed(2);
 
   // Address store
-  const { selectedAddress, openModal } = useAddressStore();
+  const { selectedAddress, openModal, hydrateFromStorage } = useAddressStore();
 
   // Fetch real restaurants and menus from API Gateway / Restaurant Service
   useEffect(() => {
+    hydrateFromStorage();
     async function fetchRealRestaurants() {
       try {
         const primaryUrl =
@@ -288,7 +289,7 @@ export default function HomePage() {
                   onClick={openModal}
                   className="flex items-center gap-1 text-xs font-bold text-[#161c23] hover:text-[#ab2f00] transition cursor-pointer"
                 >
-                  <span className="truncate max-w-[150px]">{selectedAddress.addressLine}</span>
+                  <span suppressHydrationWarning className="truncate max-w-[150px]">{selectedAddress.addressLine}</span>
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               </div>

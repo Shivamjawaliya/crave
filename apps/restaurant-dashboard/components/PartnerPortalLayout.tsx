@@ -15,7 +15,6 @@ import {
   VolumeX,
   ChevronDown,
   LogOut,
-  Tune,
   CheckCircle,
   Sliders,
   ShieldCheck,
@@ -46,6 +45,7 @@ interface PartnerPortalLayoutProps {
   onSelectRestaurant: (r: RestaurantOption) => void;
   audioChimeEnabled: boolean;
   onToggleAudioChime: () => void;
+  isSocketConnected?: boolean;
   children: React.ReactNode;
 }
 
@@ -60,6 +60,7 @@ export default function PartnerPortalLayout({
   onSelectRestaurant,
   audioChimeEnabled,
   onToggleAudioChime,
+  isSocketConnected = true,
   children,
 }: PartnerPortalLayoutProps) {
   const router = useRouter();
@@ -299,6 +300,19 @@ export default function PartnerPortalLayout({
 
             {/* Right: Audio Chime Toggle, Notification Bell, Profile Avatar */}
             <div className="flex items-center gap-3">
+              {/* WebSocket Telemetry Pill */}
+              {isSocketConnected ? (
+                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-mono font-bold shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-ping shrink-0" />
+                  <span>WS LIVE</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-700 border border-red-200 text-xs font-mono font-bold animate-pulse shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-red-600 shrink-0" />
+                  <span>WS RECONNECTING</span>
+                </div>
+              )}
+
               {/* Audio Chime Toggle */}
               <button
                 type="button"
@@ -373,6 +387,17 @@ export default function PartnerPortalLayout({
             </div>
           </div>
         </header>
+
+        {/* Offline Alert Banner */}
+        {!isSocketConnected && (
+          <div className="fixed top-16 left-64 right-0 z-30 bg-red-600 text-white px-6 py-2 text-xs font-bold flex items-center justify-between shadow-md">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping"></span>
+              <span>⚠️ KITCHEN TERMINAL OFFLINE: WebSocket connection lost. Reconnecting to gateway...</span>
+            </div>
+            <span className="text-[11px] font-mono opacity-90">Auto-reconnection active</span>
+          </div>
+        )}
 
         {/* 3. PAGE BODY CONTENT (Top offset by 4rem / 16) */}
         <main className="relative pt-16 flex-1 min-w-0 bg-[#f5fbf6]">

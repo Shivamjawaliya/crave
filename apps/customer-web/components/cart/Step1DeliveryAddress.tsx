@@ -69,10 +69,10 @@ export default function Step1DeliveryAddress({
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-700 font-semibold pt-0.5">
+          <p suppressHydrationWarning className="text-xs text-slate-700 font-semibold pt-0.5">
             {selectedAddress.addressLine}
           </p>
-          <p className="text-[11px] text-slate-500">
+          <p suppressHydrationWarning className="text-[11px] text-slate-500">
             {[selectedAddress.city, selectedAddress.state].filter(Boolean).join(', ')}{' '}
             {selectedAddress.pincode} • Intercom available
           </p>

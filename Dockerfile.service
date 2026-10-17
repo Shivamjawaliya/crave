@@ -1,0 +1,32 @@
+FROM node:22-alpine AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+
+WORKDIR /app
+
+# Copy root configurations
+COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
+COPY prisma ./prisma/
+COPY packages ./packages/
+COPY services ./services/
+
+# Install dependencies and generate prisma
+RUN pnpm install --frozen-lockfile
+RUN pnpm prisma:generate
+
+# Build the specified NestJS microservice
+ARG SERVICE_NAME
+WORKDIR /app/services/${SERVICE_NAME}
+RUN pnpm build
+
+FROM node:22-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=base /app /app
+
+ARG SERVICE_NAME
+WORKDIR /app/services/${SERVICE_NAME}
+
+CMD ["node", "dist/main.js"]

@@ -28,10 +28,12 @@ const DEFAULT_FALLBACK_ADDRESS: UserAddress = {
 interface AddressStore {
   addresses: UserAddress[];
   selectedAddress: UserAddress;
+  isHydrated: boolean;
   isLoading: boolean;
   isModalOpen: boolean;
   openModal: () => void;
   closeModal: () => void;
+  hydrateFromStorage: () => void;
   fetchAddresses: (userId: string) => Promise<void>;
   selectAddress: (address: UserAddress) => void;
   addAddress: (
@@ -51,28 +53,27 @@ interface AddressStore {
 
 const API_BASE = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
 
-export const useAddressStore = create<AddressStore>((set, get) => {
-  // Try loading saved address from localStorage
-  let initialSelected = DEFAULT_FALLBACK_ADDRESS;
-  if (typeof window !== 'undefined') {
+export const useAddressStore = create<AddressStore>((set, get) => ({
+  addresses: [DEFAULT_FALLBACK_ADDRESS],
+  selectedAddress: DEFAULT_FALLBACK_ADDRESS,
+  isHydrated: false,
+  isLoading: false,
+  isModalOpen: false,
+
+  openModal: () => set({ isModalOpen: true }),
+  closeModal: () => set({ isModalOpen: false }),
+
+  hydrateFromStorage: () => {
+    if (typeof window === 'undefined') return;
     try {
       const saved = localStorage.getItem('crave_selected_address');
       if (saved) {
-        initialSelected = JSON.parse(saved);
+        set({ selectedAddress: JSON.parse(saved), isHydrated: true });
+        return;
       }
-    } catch {
-      // ignore
-    }
-  }
-
-  return {
-    addresses: [DEFAULT_FALLBACK_ADDRESS],
-    selectedAddress: initialSelected,
-    isLoading: false,
-    isModalOpen: false,
-
-    openModal: () => set({ isModalOpen: true }),
-    closeModal: () => set({ isModalOpen: false }),
+    } catch {}
+    set({ isHydrated: true });
+  },
 
     fetchAddresses: async (userId: string) => {
       set({ isLoading: true });
@@ -173,5 +174,4 @@ export const useAddressStore = create<AddressStore>((set, get) => {
         set({ isLoading: false });
       }
     },
-  };
-});
+}));

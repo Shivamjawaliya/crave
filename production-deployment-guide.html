@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FoodPlatform — Zero-to-Live Production Deployment Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#fff5f2',
+              100: '#ffe6df',
+              500: '#ea580c',
+              600: '#c2410c',
+              700: '#9a3412',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar & animations */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    .tab-active { border-bottom: 2px solid #ea580c; color: #ea580c; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans selection:bg-orange-500 selection:text-white">
+
+  <!-- Top Hero Header -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
+          <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg text-white tracking-tight">FoodPlatform Production Guide</h1>
+            <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full">Localhost ➔ Live</span>
+          </div>
+          <p class="text-xs text-slate-400">Step-by-step roadmap to launch your Food Delivery Microservices platform live</p>
+        </div>
+      </div>
+
+      <!-- Quick Interactive Progress Indicator -->
+      <div class="hidden md:flex items-center gap-4 bg-slate-800/80 border border-slate-700/80 px-4 py-2 rounded-2xl">
+        <div class="flex flex-col text-right">
+          <span class="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Deployment Progress</span>
+          <span id="progress-text" class="text-xs font-mono font-bold text-orange-400">0 of 9 steps completed (0%)</span>
+        </div>
+        <div class="w-24 h-2 bg-slate-700 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-gradient-to-r from-orange-500 to-emerald-400 w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <div class="border-b border-slate-800 bg-slate-900/50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex gap-8 overflow-x-auto">
+      <button onclick="switchTab('steps')" id="tab-btn-steps" class="py-4 text-sm font-bold tab-active flex items-center gap-2 shrink-0 transition">
+        <span>🚀 Step-by-Step Process</span>
+      </button>
+      <button onclick="switchTab('code-changes')" id="tab-btn-code-changes" class="py-4 text-sm font-bold text-slate-400 hover:text-slate-200 flex items-center gap-2 shrink-0 transition">
+        <span>📝 Code & Config Changes</span>
+      </button>
+      <button onclick="switchTab('nginx')" id="tab-btn-nginx" class="py-4 text-sm font-bold text-slate-400 hover:text-slate-200 flex items-center gap-2 shrink-0 transition">
+        <span>🌐 Nginx & SSL Config</span>
+      </button>
+      <button onclick="switchTab('docker')" id="tab-btn-docker" class="py-4 text-sm font-bold text-slate-400 hover:text-slate-200 flex items-center gap-2 shrink-0 transition">
+        <span>🐳 Docker Compose File</span>
+      </button>
+      <button onclick="switchTab('troubleshooting')" id="tab-btn-troubleshooting" class="py-4 text-sm font-bold text-slate-400 hover:text-slate-200 flex items-center gap-2 shrink-0 transition">
+        <span>🛠️ Troubleshooting & FAQ</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+    <!-- ========================================================================= -->
+    <!-- TAB 1: STEP-BY-STEP PROCESS -->
+    <!-- ========================================================================= -->
+    <div id="tab-steps" class="space-y-8 animate-in fade-in">
+
+      <!-- Executive Overview Card -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-850 p-6 sm:p-8 rounded-3xl border border-slate-800 shadow-xl relative overflow-hidden">
+        <div class="max-w-3xl space-y-3">
+          <span class="text-xs uppercase font-extrabold tracking-wider text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 inline-block">
+            Production Roadmap (Easy English)
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-black text-white">How to take FoodPlatform Live in ~45 Minutes</h2>
+          <p class="text-slate-300 text-sm leading-relaxed">
+            Your application is composed of <strong>4 Next.js frontend portals</strong>, <strong>7 NestJS microservices</strong>, <strong>PostgreSQL</strong>, <strong>Redis</strong>, and <strong>RabbitMQ</strong>. Follow these 9 steps sequentially on a single Linux cloud server (VPS) to host your entire business under your own domain name with free SSL (HTTPS).
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800">
+          <div class="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-bold block">Recommended Server</span>
+            <span class="text-sm font-bold text-emerald-400">Ubuntu 24.04 (4GB RAM)</span>
+          </div>
+          <div class="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-bold block">Estimated Cost</span>
+            <span class="text-sm font-bold text-white">$12 - $24 / month</span>
+          </div>
+          <div class="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-bold block">Setup Duration</span>
+            <span class="text-sm font-bold text-amber-400">~45 minutes</span>
+          </div>
+          <div class="bg-slate-800/50 p-3 rounded-2xl border border-slate-700/60">
+            <span class="text-[10px] text-slate-400 uppercase font-bold block">SSL Certificate</span>
+            <span class="text-sm font-bold text-cyan-400">100% Free (Let's Encrypt)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Steps Accordion / Checklist -->
+      <div class="space-y-6">
+
+        <!-- STEP 1 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-1" onchange="toggleStep(1)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 1</span>
+                <h3 class="text-lg font-black text-white">Purchase a Domain Name</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
+          </div>
+          <p class="text-sm text-slate-300 pl-10">
+            You need a custom web domain (e.g., <code class="text-orange-300 bg-slate-800 px-1.5 py-0.5 rounded font-mono">quickbites.com</code> or <code class="text-orange-300 bg-slate-800 px-1.5 py-0.5 rounded font-mono">cravedelivery.in</code>). You can buy one from:
+          </p>
+          <ul class="list-disc list-inside text-xs text-slate-400 pl-10 space-y-1">
+            <li><strong>Namecheap</strong> (<a href="https://www.namecheap.com" target="_blank" class="text-orange-400 underline">namecheap.com</a>) — Cheap and clean interface</li>
+            <li><strong>Cloudflare Registrar</strong> (<a href="https://www.cloudflare.com" target="_blank" class="text-orange-400 underline">cloudflare.com</a>) — At-cost pricing with free DDoS protection</li>
+            <li><strong>GoDaddy / Hostinger</strong> — Common in India and worldwide</li>
+          </ul>
+        </div>
+
+        <!-- STEP 2 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-2" onchange="toggleStep(2)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 2</span>
+                <h3 class="text-lg font-black text-white">Rent a Linux Cloud Server (VPS)</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">10 mins</span>
+          </div>
+          <p class="text-sm text-slate-300 pl-10">
+            A VPS is your computer in the cloud that runs 24/7. Rent an <strong>Ubuntu 24.04 LTS</strong> machine with at least <strong>4GB RAM</strong> (8GB recommended for peak rush).
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pl-10 text-xs">
+            <div class="p-3 bg-slate-850 rounded-2xl border border-slate-800">
+              <strong class="text-white block">DigitalOcean</strong>
+              <span class="text-slate-400">"Basic Droplet" (4GB RAM, 2 vCPU)</span>
+              <span class="text-emerald-400 block font-bold mt-1">~$24 / mo</span>
+            </div>
+            <div class="p-3 bg-slate-850 rounded-2xl border border-slate-800">
+              <strong class="text-white block">Hetzner Cloud</strong>
+              <span class="text-slate-400">"CPX21" (4GB RAM, 3 vCPU)</span>
+              <span class="text-emerald-400 block font-bold mt-1">~€7 / mo (Best value)</span>
+            </div>
+            <div class="p-3 bg-slate-850 rounded-2xl border border-slate-800">
+              <strong class="text-white block">AWS EC2</strong>
+              <span class="text-slate-400">"t3.medium" (4GB RAM, 2 vCPU)</span>
+              <span class="text-emerald-400 block font-bold mt-1">~$30 / mo</span>
+            </div>
+          </div>
+          <div class="pl-10 text-xs text-slate-400">
+            Note down the server's public IP address (for example: <code class="text-emerald-400 font-mono">159.89.123.45</code>).
+          </div>
+        </div>
+
+        <!-- STEP 3 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-3" onchange="toggleStep(3)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 3</span>
+                <h3 class="text-lg font-black text-white">Create DNS "A" Records for Subdomains</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
+          </div>
+          <p class="text-sm text-slate-300 pl-10">
+            In your domain registrar dashboard (Cloudflare or Namecheap), open DNS Management and create 5 <strong>A records</strong> pointing to your server's IP address:
+          </p>
+          <div class="pl-10 overflow-x-auto">
+            <table class="w-full text-xs font-mono border border-slate-800 text-left rounded-xl overflow-hidden">
+              <thead class="bg-slate-800 text-slate-300">
+                <tr>
+                  <th class="p-2.5">Subdomain Record</th>
+                  <th class="p-2.5">Type</th>
+                  <th class="p-2.5">Target IP</th>
+                  <th class="p-2.5">Purpose</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800 bg-slate-850">
+                <tr>
+                  <td class="p-2.5 text-orange-300">crave.yourdomain.com</td>
+                  <td class="p-2.5 text-slate-400">A</td>
+                  <td class="p-2.5 text-emerald-400">YOUR_SERVER_IP</td>
+                  <td class="p-2.5 text-slate-300">Customer Food Ordering Web App</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-orange-300">restaurant.yourdomain.com</td>
+                  <td class="p-2.5 text-slate-400">A</td>
+                  <td class="p-2.5 text-emerald-400">YOUR_SERVER_IP</td>
+                  <td class="p-2.5 text-slate-300">Restaurant Owner Live KDS & Menus</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-orange-300">driver.yourdomain.com</td>
+                  <td class="p-2.5 text-slate-400">A</td>
+                  <td class="p-2.5 text-emerald-400">YOUR_SERVER_IP</td>
+                  <td class="p-2.5 text-slate-300">Delivery Partner Portal & GPS Tracker</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-orange-300">admin.yourdomain.com</td>
+                  <td class="p-2.5 text-slate-400">A</td>
+                  <td class="p-2.5 text-emerald-400">YOUR_SERVER_IP</td>
+                  <td class="p-2.5 text-slate-300">Central Platform Admin Console</td>
+                </tr>
+                <tr>
+                  <td class="p-2.5 text-orange-300">api.yourdomain.com</td>
+                  <td class="p-2.5 text-slate-400">A</td>
+                  <td class="p-2.5 text-emerald-400">YOUR_SERVER_IP</td>
+                  <td class="p-2.5 text-slate-300">API Gateway & Real-time WebSockets</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- STEP 4 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-4" onchange="toggleStep(4)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 4</span>
+                <h3 class="text-lg font-black text-white">Connect via SSH & Install Docker</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">7 mins</span>
+          </div>
+          <p class="text-sm text-slate-300 pl-10">
+            Open your terminal on your Mac/PC and connect to the server:
+          </p>
+          <div class="pl-10 space-y-2">
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-emerald-400">
+              <button onclick="copyCode('ssh-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <span id="ssh-cmd">ssh root@YOUR_SERVER_IP</span>
+            </div>
+            <p class="text-xs text-slate-400">Once logged in, run this 1-line script to install Docker, Docker Compose, Git, Nginx, and Certbot:</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200 overflow-x-auto">
+              <button onclick="copyCode('install-deps-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="install-deps-cmd">sudo apt update && sudo apt upgrade -y
+sudo apt install -y git curl ufw nginx certbot python3-certbot-nginx
+curl -fsSL https://get.docker.com -o get-docker.sh && sudo sh get-docker.sh
+sudo systemctl enable docker nginx</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 5 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-5" onchange="toggleStep(5)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 5</span>
+                <h3 class="text-lg font-black text-white">Clone Codebase onto Server</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
+          </div>
+          <div class="pl-10 space-y-3">
+            <p class="text-sm text-slate-300">Clone your repository into the standard production directory <code class="text-orange-300 font-mono">/var/www/foodplatform</code>:</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
+              <button onclick="copyCode('clone-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="clone-cmd">sudo mkdir -p /var/www/foodplatform
+cd /var/www/foodplatform
+git clone https://github.com/YOUR_GITHUB_USERNAME/foodplatform.git .</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 6 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-6" onchange="toggleStep(6)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 6</span>
+                <h3 class="text-lg font-black text-white">Configure .env.production File</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
+          </div>
+          <div class="pl-10 space-y-3">
+            <p class="text-sm text-slate-300">Copy the production template created in your repo and edit with your live keys and domain:</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
+              <button onclick="copyCode('env-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="env-cmd">cp .env.production.example .env
+nano .env</pre>
+            </div>
+            <p class="text-xs text-slate-400">Press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700">Ctrl + O</kbd> then <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700">Enter</kbd> to save, then <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700">Ctrl + X</kbd> to exit nano.</p>
+          </div>
+        </div>
+
+        <!-- STEP 7 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-7" onchange="toggleStep(7)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 7</span>
+                <h3 class="text-lg font-black text-white">Build & Start Containers with Docker Compose</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">10 mins</span>
+          </div>
+          <div class="pl-10 space-y-3">
+            <p class="text-sm text-slate-300">Build all 7 microservices and 4 Next.js applications in parallel:</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
+              <button onclick="copyCode('docker-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="docker-cmd">docker compose -f docker-compose.prod.yml up -d --build
+
+# Run database schema migration on production PostgreSQL
+docker compose -f docker-compose.prod.yml exec auth-service npx prisma migrate deploy</pre>
+            </div>
+            <p class="text-xs text-slate-400">Check running containers using <code class="text-emerald-400 font-mono">docker compose -f docker-compose.prod.yml ps</code></p>
+          </div>
+        </div>
+
+        <!-- STEP 8 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-8" onchange="toggleStep(8)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 8</span>
+                <h3 class="text-lg font-black text-white">Configure Nginx Reverse Proxy</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
+          </div>
+          <div class="pl-10 space-y-3">
+            <p class="text-sm text-slate-300">Nginx listens on port 80 and 443 and routes incoming requests from your domains to the respective Docker container port.</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
+              <button onclick="copyCode('nginx-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="nginx-cmd">sudo nano /etc/nginx/sites-available/foodplatform
+# (Paste the full Nginx config from the "Nginx & SSL Config" tab above)
+sudo ln -s /etc/nginx/sites-available/foodplatform /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- STEP 9 -->
+        <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-4 hover:border-slate-700 transition">
+          <div class="flex items-start justify-between gap-4">
+            <div class="flex items-center gap-4">
+              <input type="checkbox" id="check-step-9" onchange="toggleStep(9)" class="w-6 h-6 rounded-lg text-orange-500 bg-slate-800 border-slate-700 focus:ring-orange-500 focus:ring-offset-slate-900 cursor-pointer">
+              <div>
+                <span class="text-[10px] uppercase font-bold tracking-wider text-orange-400">Step 9</span>
+                <h3 class="text-lg font-black text-white">Activate 100% Free SSL (HTTPS 🔒) with Certbot</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">3 mins</span>
+          </div>
+          <div class="pl-10 space-y-3">
+            <p class="text-sm text-slate-300">Run Certbot to automatically issue SSL certificates for all subdomains and set up auto-renewal:</p>
+            <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
+              <button onclick="copyCode('certbot-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
+              <pre id="certbot-cmd">sudo certbot --nginx -d crave.yourdomain.com -d restaurant.yourdomain.com -d driver.yourdomain.com -d admin.yourdomain.com -d api.yourdomain.com</pre>
+            </div>
+            <div class="p-3 bg-emerald-950/40 border border-emerald-800/80 rounded-2xl text-xs text-emerald-300 flex items-center gap-2">
+              <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+              <span><strong>Congratulations!</strong> Your FoodPlatform is now officially LIVE on the internet with green HTTPS padlocks!</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 2: CODE & CONFIG CHANGES (LOCALHOST VS PRODUCTION) -->
+    <!-- ========================================================================= -->
+    <div id="tab-code-changes" class="hidden space-y-8 animate-in fade-in">
+      <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4">
+        <h2 class="text-xl font-black text-white">What Code & Config Must Change from Localhost?</h2>
+        <p class="text-xs text-slate-300 leading-relaxed">
+          In localhost, applications connect to <code class="text-orange-400 font-mono">http://localhost:3001</code>, and microservices talk over local ports <code class="text-orange-400 font-mono">:4001, :4002, :4003</code>. In production, <strong>no port numbers should be visible to customers</strong>, and communications must use secure HTTPS and private internal container networking.
+        </p>
+
+        <div class="overflow-x-auto mt-4">
+          <table class="w-full text-xs font-mono border border-slate-800 text-left rounded-2xl overflow-hidden">
+            <thead class="bg-slate-800 text-slate-300">
+              <tr>
+                <th class="p-3">Category</th>
+                <th class="p-3 text-rose-400">Localhost (Development)</th>
+                <th class="p-3 text-emerald-400">Production (Live Cloud)</th>
+                <th class="p-3 text-slate-400">Where to Change</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-800 bg-slate-850">
+              <tr>
+                <td class="p-3 font-bold text-white">Customer App URL</td>
+                <td class="p-3 text-rose-400">http://localhost:3000</td>
+                <td class="p-3 text-emerald-400">https://crave.yourdomain.com</td>
+                <td class="p-3 text-slate-300">DNS + Nginx + .env WEB_ORIGIN</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">Restaurant KDS URL</td>
+                <td class="p-3 text-rose-400">http://localhost:3002</td>
+                <td class="p-3 text-emerald-400">https://restaurant.yourdomain.com</td>
+                <td class="p-3 text-slate-300">DNS + Nginx + .env RESTAURANT_ORIGIN</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">Driver Portal URL</td>
+                <td class="p-3 text-rose-400">http://localhost:3003</td>
+                <td class="p-3 text-emerald-400">https://driver.yourdomain.com</td>
+                <td class="p-3 text-slate-300">DNS + Nginx + .env DELIVERY_ORIGIN</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">API Gateway & Sockets</td>
+                <td class="p-3 text-rose-400">http://localhost:3001</td>
+                <td class="p-3 text-emerald-400">https://api.yourdomain.com (wss://)</td>
+                <td class="p-3 text-slate-300">NEXT_PUBLIC_SOCKET_URL in frontend build</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">Microservice Routing</td>
+                <td class="p-3 text-rose-400">http://localhost:4001, 4002...</td>
+                <td class="p-3 text-emerald-400">http://auth-service:4001 (Private Docker)</td>
+                <td class="p-3 text-slate-300">docker-compose.prod.yml environment</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">PostgreSQL URL</td>
+                <td class="p-3 text-rose-400">postgresql://...localhost:5433</td>
+                <td class="p-3 text-emerald-400">postgresql://...postgres:5432 (Internal Docker)</td>
+                <td class="p-3 text-slate-300">DATABASE_URL in .env.production</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">Payment Gateway Mode</td>
+                <td class="p-3 text-rose-400">rzp_test_... (Test Mode)</td>
+                <td class="p-3 text-emerald-400">rzp_live_... (Live Real Money)</td>
+                <td class="p-3 text-slate-300">RAZORPAY_KEY_ID in .env.production</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">CORS Settings</td>
+                <td class="p-3 text-rose-400">origin: '*' (Allow everything)</td>
+                <td class="p-3 text-emerald-400">Allowed array of your subdomains</td>
+                <td class="p-3 text-slate-300">services/api-gateway/src/main.ts</td>
+              </tr>
+              <tr>
+                <td class="p-3 font-bold text-white">Cookies & JWT</td>
+                <td class="p-3 text-rose-400">SameSite=Lax; Secure=false</td>
+                <td class="p-3 text-emerald-400">SameSite=None; Secure=true (HTTPS)</td>
+                <td class="p-3 text-slate-300">Next.js auth handlers & NestJS auth cookies</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 3: NGINX & SSL CONFIGURATION -->
+    <!-- ========================================================================= -->
+    <div id="tab-nginx" class="hidden space-y-8 animate-in fade-in">
+      <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-black text-white">Production Nginx Reverse Proxy Configuration</h2>
+            <p class="text-xs text-slate-400 mt-1">Place this in <code class="text-orange-400 font-mono">/etc/nginx/sites-available/foodplatform</code> on your Ubuntu server.</p>
+          </div>
+          <button onclick="copyCode('full-nginx-conf')" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white rounded-xl transition shadow-md">Copy Nginx Conf</button>
+        </div>
+
+        <div class="relative bg-slate-950 p-5 rounded-2xl border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
+          <pre id="full-nginx-conf"># ------------------------------------------------------------------------------
+# 1. API GATEWAY & WEBSOCKETS (Socket.io & SSE)
+# ------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+
+        # WebSocket support (Crucial for live order updates & driver GPS)
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Disable buffering for Server-Sent Events (SSE)
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+        proxy_send_timeout 86400s;
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 2. CUSTOMER WEB APP
+# ------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name crave.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 3. RESTAURANT KDS DASHBOARD
+# ------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name restaurant.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 4. DELIVERY PARTNER DASHBOARD
+# ------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name driver.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3003;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# ------------------------------------------------------------------------------
+# 5. ADMIN DASHBOARD
+# ------------------------------------------------------------------------------
+server {
+    listen 80;
+    server_name admin.yourdomain.com;
+
+    location / {
+        proxy_pass http://127.0.0.1:3004;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 4: PRODUCTION DOCKER COMPOSE FILE -->
+    <!-- ========================================================================= -->
+    <div id="tab-docker" class="hidden space-y-8 animate-in fade-in">
+      <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-xl font-black text-white">Full Stack docker-compose.prod.yml</h2>
+            <p class="text-xs text-slate-400 mt-1">This file is already created in your project root!</p>
+          </div>
+          <button onclick="copyCode('prod-compose-code')" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white rounded-xl transition shadow-md">Copy Compose File</button>
+        </div>
+
+        <div class="relative bg-slate-950 p-5 rounded-2xl border border-slate-800 font-mono text-xs text-slate-300 max-h-[600px] overflow-y-auto">
+          <pre id="prod-compose-code"># Run this file with:
+# docker compose -f docker-compose.prod.yml up -d --build
+
+# All 7 microservices communicate via internal private network "food_internal_net".
+# Only public ports 3000, 3001, 3002, 3003, 3004 are published locally on 127.0.0.1 for Nginx.
+# Database and RabbitMQ passwords are encrypted via your .env file.</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TAB 5: TROUBLESHOOTING & FAQ -->
+    <!-- ========================================================================= -->
+    <div id="tab-troubleshooting" class="hidden space-y-8 animate-in fade-in">
+      <div class="bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6">
+        <h2 class="text-xl font-black text-white">Frequently Encountered Issues & Fixes</h2>
+
+        <div class="space-y-4 text-xs">
+          <div class="p-4 bg-slate-850 rounded-2xl border border-slate-800 space-y-1.5">
+            <h4 class="font-bold text-orange-400 text-sm">1. "WebSocket connection failed: wss://api.yourdomain.com/socket.io..."</h4>
+            <p class="text-slate-300"><strong>Cause:</strong> Nginx is missing WebSocket headers or SSL hasn't been applied to <code class="text-white">api.yourdomain.com</code>.</p>
+            <p class="text-slate-400"><strong>Fix:</strong> Ensure your Nginx block has <code class="text-emerald-400">proxy_set_header Upgrade $http_upgrade;</code> and run Certbot to enable HTTPS so the browser can securely upgrade to <code class="text-emerald-400">wss://</code>.</p>
+          </div>
+
+          <div class="p-4 bg-slate-850 rounded-2xl border border-slate-800 space-y-1.5">
+            <h4 class="font-bold text-orange-400 text-sm">2. "PrismaClientInitializationError: Can't reach database server"</h4>
+            <p class="text-slate-300"><strong>Cause:</strong> Container started before PostgreSQL finished its initial boot.</p>
+            <p class="text-slate-400"><strong>Fix:</strong> In <code class="text-white">docker-compose.prod.yml</code>, we configured <code class="text-emerald-400">condition: service_healthy</code> on the PostgreSQL healthcheck so microservices wait until Postgres is 100% accepting connections.</p>
+          </div>
+
+          <div class="p-4 bg-slate-850 rounded-2xl border border-slate-800 space-y-1.5">
+            <h4 class="font-bold text-orange-400 text-sm">3. "CORS error: No 'Access-Control-Allow-Origin' header is present..."</h4>
+            <p class="text-slate-300"><strong>Cause:</strong> API Gateway does not recognize your production domain.</p>
+            <p class="text-slate-400"><strong>Fix:</strong> In <code class="text-white">.env</code>, set <code class="text-emerald-400">WEB_ORIGIN=https://crave.yourdomain.com</code> and restart the gateway.</p>
+          </div>
+
+          <div class="p-4 bg-slate-850 rounded-2xl border border-slate-800 space-y-1.5">
+            <h4 class="font-bold text-orange-400 text-sm">4. How to view live logs of any microservice in production?</h4>
+            <p class="text-slate-300"><strong>Command:</strong> Run <code class="text-emerald-400 font-mono">docker compose -f docker-compose.prod.yml logs -f order-service</code> (or <code class="text-emerald-400 font-mono">delivery-service</code>, <code class="text-emerald-400 font-mono">api-gateway</code>).</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500 bg-slate-950">
+    FoodPlatform Microservices • Generated for Production Launch • Created on 2026-10-18
+  </footer>
+
+  <!-- Script for Tabs, Copying & Checkbox Progress persistence -->
+  <script>
+    function switchTab(tabId) {
+      const tabs = ['steps', 'code-changes', 'nginx', 'docker', 'troubleshooting'];
+      tabs.forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        const btn = document.getElementById('tab-btn-' + t);
+        if (t === tabId) {
+          el.classList.remove('hidden');
+          btn.classList.add('tab-active');
+          btn.classList.remove('text-slate-400');
+        } else {
+          el.classList.add('hidden');
+          btn.classList.remove('tab-active');
+          btn.classList.add('text-slate-400');
+        }
+      });
+    }
+
+    function toggleStep(stepNum) {
+      const checkbox = document.getElementById('check-step-' + stepNum);
+      localStorage.setItem('food_step_' + stepNum, checkbox.checked ? 'true' : 'false');
+      updateProgress();
+    }
+
+    function updateProgress() {
+      let count = 0;
+      for (let i = 1; i <= 9; i++) {
+        if (localStorage.getItem('food_step_' + i) === 'true') {
+          count++;
+          const cb = document.getElementById('check-step-' + i);
+          if (cb) cb.checked = true;
+        }
+      }
+      const pct = Math.round((count / 9) * 100);
+      const text = document.getElementById('progress-text');
+      const bar = document.getElementById('progress-bar');
+      if (text) text.innerText = `${count} of 9 steps completed (${pct}%)`;
+      if (bar) bar.style.width = pct + '%';
+    }
+
+    function copyCode(elementId) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      navigator.clipboard.writeText(el.innerText).then(() => {
+        alert('Copied to clipboard!');
+      });
+    }
+
+    // Hydrate checkbox state on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      updateProgress();
+    });
+  </script>
+</body>
+</html>

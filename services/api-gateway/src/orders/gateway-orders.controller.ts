@@ -5,18 +5,24 @@ import {
   Patch,
   Body,
   Param,
+  Res,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
+import { OrderSseService } from './order-sse.service';
 
 @ApiTags('Orders (API Gateway)')
 @Controller('orders')
 export class GatewayOrdersController {
   private orderServiceUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly orderSseService: OrderSseService,
+  ) {
     this.orderServiceUrl =
       this.configService.get<string>('ORDER_SERVICE_URL') ||
       'http://localhost:4003';
@@ -97,6 +103,36 @@ export class GatewayOrdersController {
     }
   }
 
+  @Get('customer/:customerId/live')
+  @ApiOperation({ summary: 'Server-Sent Events (SSE) live order tracking stream for customer' })
+  streamCustomerOrders(
+    @Param('customerId') customerId: string,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    this.orderSseService.addCustomerClient(customerId, res);
+  }
+
+  @Get(':id/live')
+  @ApiOperation({ summary: 'Server-Sent Events (SSE) live order tracking stream for single order' })
+  streamOrder(
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+
+    this.orderSseService.addOrderClient(id, res);
+  }
+
   @Get('restaurant/:restaurantId')
   @ApiOperation({ summary: 'Get all live orders for a restaurant' })
   async getRestaurantOrders(@Param('restaurantId') restaurantId: string) {
@@ -141,7 +177,7 @@ export class GatewayOrdersController {
   @ApiOperation({ summary: 'Update order status lifecycle' })
   async updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: string; actorId?: string },
+    @Body() body: { status: string; changedBy?: string; actorId?: string },
   ) {
     try {
       const response = await fetch(`${this.orderServiceUrl}/orders/${id}/status`, {
@@ -152,6 +188,47 @@ export class GatewayOrdersController {
       const data = await response.json();
       if (!response.ok) {
         throw new HttpException(data.message || 'Status update failed', response.status);
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Order service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Post(':id/accept')
+  @ApiOperation({ summary: 'Accept incoming order' })
+  async acceptOrder(@Param('id') id: string) {
+    try {
+      const response = await fetch(`${this.orderServiceUrl}/orders/${id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(data.message || 'Accept order failed', response.status);
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Order service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Get(':id/logs')
+  @ApiOperation({ summary: 'Get order status change logs timeline' })
+  async getOrderLogs(@Param('id') id: string) {
+    try {
+      const response = await fetch(`${this.orderServiceUrl}/orders/${id}/logs`);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(data.message || 'Failed to fetch logs', response.status);
       }
       return data;
     } catch (error: any) {

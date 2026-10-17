@@ -1,0 +1,280 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # INFRASTRUCTURE TIER
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    container_name: food_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: food_platform
+      POSTGRES_USER: ${POSTGRES_USER:-food_app_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_secret_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - food_internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-food_app_admin} -d food_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: food_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redis_secret_pass}"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - food_internal_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_secret_pass}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: food_rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-food_rabbit_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-rabbit_secret_pass}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - food_internal_net
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ----------------------------------------------------------------------------
+  # BACKEND MICROSERVICES TIER
+  # ----------------------------------------------------------------------------
+  auth-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=auth-service
+    container_name: food_auth_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4001
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  restaurant-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=restaurant-service
+    container_name: food_restaurant_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4002
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  order-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=order-service
+    container_name: food_order_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4003
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=payment-service
+    container_name: food_payment_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4004
+      - DATABASE_URL=${DATABASE_URL}
+      - RAZORPAY_KEY_ID=${RAZORPAY_KEY_ID}
+      - RAZORPAY_KEY_SECRET=${RAZORPAY_KEY_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  delivery-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=delivery-service
+    container_name: food_delivery_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4005
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - ORDER_SERVICE_URL=http://order-service:4003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=notification-service
+    container_name: food_notification_service
+    restart: always
+    environment:
+      - NODE_ENV=production
+      - PORT=4006
+      - RABBITMQ_URL=${RABBITMQ_URL}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - food_internal_net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        - SERVICE_NAME=api-gateway
+    container_name: food_api_gateway
+    restart: always
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - GATEWAY_PORT=3001
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      - RESTAURANT_SERVICE_URL=http://restaurant-service:4002
+      - ORDER_SERVICE_URL=http://order-service:4003
+      - PAYMENT_SERVICE_URL=http://payment-service:4004
+      - DELIVERY_SERVICE_URL=http://delivery-service:4005
+      - NOTIFICATION_SERVICE_URL=http://notification-service:4006
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - WEB_ORIGIN=${WEB_ORIGIN}
+      - RESTAURANT_DASHBOARD_ORIGIN=${RESTAURANT_DASHBOARD_ORIGIN}
+      - DELIVERY_DASHBOARD_ORIGIN=${DELIVERY_DASHBOARD_ORIGIN}
+      - ADMIN_DASHBOARD_ORIGIN=${ADMIN_DASHBOARD_ORIGIN}
+    depends_on:
+      - auth-service
+      - restaurant-service
+      - order-service
+      - delivery-service
+    networks:
+      - food_internal_net
+
+  # ----------------------------------------------------------------------------
+  # FRONTEND NEXT.JS APPLICATIONS TIER
+  # ----------------------------------------------------------------------------
+  customer-web:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+      args:
+        - APP_NAME=customer-web
+        - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+    container_name: food_customer_web
+    restart: always
+    ports:
+      - "3000:3000"
+    networks:
+      - food_internal_net
+
+  restaurant-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+      args:
+        - APP_NAME=restaurant-dashboard
+        - NEXT_PUBLIC_GATEWAY_URL=${NEXT_PUBLIC_GATEWAY_URL}
+        - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+    container_name: food_restaurant_dashboard
+    restart: always
+    ports:
+      - "3002:3002"
+    networks:
+      - food_internal_net
+
+  delivery-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+      args:
+        - APP_NAME=delivery-dashboard
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_SOCKET_URL=${NEXT_PUBLIC_SOCKET_URL}
+    container_name: food_delivery_dashboard
+    restart: always
+    ports:
+      - "3003:3003"
+    networks:
+      - food_internal_net
+
+  admin-dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.app
+      args:
+        - APP_NAME=admin-dashboard
+    container_name: food_admin_dashboard
+    restart: always
+    ports:
+      - "3004:3004"
+    networks:
+      - food_internal_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  food_internal_net:
+    driver: bridge
