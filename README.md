@@ -12,8 +12,15 @@ fooapp/
 │   ├── customer-web/          # Next.js customer ordering portal (:3000)
 │   ├── restaurant-dashboard/  # Kitchen display & order management (:3002)
 │   ├── delivery-dashboard/    # Delivery partner portal & live GPS tracking (:3003)
-│   ├── admin-dashboard/       # System oversight, approvals, and audits (:3004)
-│   └── api/                   # Modular NestJS backend API (:3001)
+│   └── admin-dashboard/       # System oversight, approvals, and audits (:3004)
+├── services/                  # Microservices Directory
+│   ├── api-gateway/           # API Gateway & real-time WebSocket hub (:3001)
+│   ├── auth-service/          # Authentication & user profile service (:4001)
+│   ├── restaurant-service/    # Restaurant & menu management service (:4002)
+│   ├── order-service/         # Cart, checkout quote, & order lifecycle (:4003)
+│   ├── payment-service/       # Razorpay payments & webhook service (:4004)
+│   ├── delivery-service/      # Delivery assignment & GPS tracking (:4005)
+│   └── notification-service/  # RabbitMQ async event consumer (:4006)
 ├── packages/
 │   ├── shared-types/          # Shared TypeScript interfaces, enums, events
 │   ├── validation/            # Common Zod validation & currency helpers
@@ -55,17 +62,20 @@ pnpm prisma:migrate
 pnpm prisma:seed
 ```
 
-### 4. Run Development Servers
+### 4. Run Microservices & Frontends
 ```bash
-# Run all applications simultaneously
+# Start all microservices in parallel
+pnpm dev:services
+
+# Start all frontend portals in parallel
 pnpm dev
 
-# Or run individual services:
-pnpm dev:api         # http://localhost:3001 (Swagger at /api/docs)
-pnpm dev:customer    # http://localhost:3000
-pnpm dev:restaurant  # http://localhost:3002
-pnpm dev:delivery    # http://localhost:3003
-pnpm dev:admin       # http://localhost:3004
+# Or run individual apps:
+pnpm dev:gateway      # http://localhost:3001 (Gateway & Swagger docs)
+pnpm dev:customer     # http://localhost:3000
+pnpm dev:restaurant   # http://localhost:3002
+pnpm dev:delivery     # http://localhost:3003
+pnpm dev:admin        # http://localhost:3004
 ```
 
 ---

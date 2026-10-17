@@ -32,38 +32,7 @@ fooapp/
 │   └── workflows/
 │       ├── ci.yml                     # GitHub Actions CI for linting, testing, and building
 │       └── deploy.yml                 # Staging deployment and Docker packaging workflow
-├── apps/
-│   ├── api/                           # NestJS Modular Backend API (:3001)
-│   │   ├── src/
-│   │   │   ├── common/                # Shared filters, guards, decorators, and interceptors
-│   │   │   │   ├── decorators/        # @Roles(), @CurrentUser()
-│   │   │   │   ├── filters/           # HttpExceptionFilter (unified error envelope)
-│   │   │   │   ├── guards/            # JwtAuthGuard, RolesGuard
-│   │   │   │   └── interceptors/      # TransformInterceptor (unified response format)
-│   │   │   ├── config/                # Environment configuration loading and schema validation
-│   │   │   ├── prisma/                # PrismaService (connection lifecycle) & PrismaModule
-│   │   │   ├── auth/                  # Registration, login, JWT issuance, refresh token rotation
-│   │   │   ├── users/                 # User profiles, saved delivery addresses
-│   │   │   ├── restaurants/           # Public restaurant search & owner restaurant CRUD
-│   │   │   ├── menus/                 # Menu categories, items, pricing, availability toggles
-│   │   │   ├── cart/                  # Server-validated shopping cart operations
-│   │   │   ├── checkout/              # Server-side quote calculator (taxes, subtotal, delivery fee)
-│   │   │   ├── orders/                # Transactional order placement, status state machine
-│   │   │   ├── payments/              # Razorpay test order creation, HMAC signature verification
-│   │   │   ├── webhooks/              # Razorpay webhook listener, idempotency deduplication
-│   │   │   ├── delivery/              # Job pooling, concurrent assignment locking, trip progress
-│   │   │   ├── tracking/              # Real-time GPS coordinate logging and subscriber retrieval
-│   │   │   ├── notifications/         # RabbitMQ topic event publisher and in-app alert store
-│   │   │   ├── realtime/              # Socket.IO Gateway for order rooms & telemetry broadcasting
-│   │   │   ├── admin/                 # Platform metrics, user controls, restaurant approvals, audit logs
-│   │   │   ├── health/                # Liveness and database connectivity probes
-│   │   │   ├── app.module.ts          # Root module aggregating all domain services
-│   │   │   └── main.ts                # Application bootstrap, Swagger documentation, CORS, pipes
-│   │   ├── test/                      # E2E test suites with Supertest and Jest
-│   │   ├── nest-cli.json              # NestJS CLI configuration
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
+├── apps/                              # Client Frontend Applications
 │   ├── customer-web/                  # Next.js Customer Ordering Portal (:3000)
 │   │   ├── app/                       # App Router (page.tsx, layout.tsx, globals.css)
 │   │   ├── components/                # Reusable UI components and site layout
@@ -189,9 +158,9 @@ The database is built on PostgreSQL using integer paise arithmetic (`pricePaise`
 
 ---
 
-## 4. Backend Domain Modules (`apps/api`)
+## 4. Backend Domain Capabilities & Endpoints
 
-The NestJS backend API is designed cleanly into isolated domain modules:
+The backend capabilities are organized into clear domain modules across the microservices:
 
 1. **`AuthModule`**:
    - `POST /api/v1/auth/register`: Creates accounts with bcrypt hashing.
