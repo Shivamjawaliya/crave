@@ -259,6 +259,17 @@ All four frontend applications are built with **Next.js 15**, **React 19**, and 
      - **Trending Around You**: Real database culinary establishments (*Umai Ramen & Izakaya*, *Tartine Artisan Bakery*, *Nori Bistro & Sushi*, *Lucia Wood-Fired Pizza*) with interactive *Quick Reorder* card.
      - **Speedy Cravings (< 25 min)**: Rapid-dispatch restaurants (*Smash & Co.*, *Olive & Thyme Greens*, *Tacos Del Sol*, *Kinfolk Roastery*) with dedicated tags.
      - **Real Kitchen Menu Modal**: Clicking any restaurant loads its full categorized menu and items directly from PostgreSQL with description, pricing in paise, and direct addition to the Zustand cart store.
+   - **Restaurant Menu & Customizer Page (`/restaurants/[id]`)**: Pixel-accurate implementation of Stitch screen `da12e93cd6ea499ca9e1e5d6088c6556`:
+     - **Atmospheric Hero Banner**: Dynamic culinary kitchen backdrop, Michelin Guide & Handcrafted badges, preparation times, delivery fees, and favorite heart toggle.
+     - **Interactive Dish Customizer Modal**: Choose broth styles (Rich Tonkotsu, Spicy Miso, Roasted Garlic Shoyu), noodle firmness (Katame, Futsu, Yawarame), add-on extra toppings (Tamago, Chashu, Menma), and real-time quantity pricing.
+     - **Sticky Order Sidebar**: Live cart summary with itemized counters, plastic-free chopsticks checkbox, and instant checkout link.
+   - **Checkout & Payment Flow (`/cart`)**: Pixel-accurate implementation of Stitch screen `8dc23f00a4de4ed18c62b505f8db4d4b`:
+     - **Step 1 — Delivery Address & Drop-off**: Interactive 'Meet at door' vs 'Leave at door' toggle, building callbox codes, and custom courier instructions.
+     - **Step 2 — Delivery Speed & Schedule**: Priority (+$2.99 direct to door) vs Standard (Free, popular) vs Schedule.
+     - **Step 3 — Payment Method**: Express Apple Pay / Google Pay, saved Visa card with CVV verification, and Crave Cash offset toggle.
+     - **Step 4 — Courier Tip**: 15%, 18%, 20%, or custom tip directly to the courier.
+     - **Offers & Vouchers**: Coupon code validation (`SAVOR10` with -$5.00 discount).
+     - **Sticky Order Summary**: Live totals with taxes, fees, tips, guaranteed safe checkout badge, and order transmission.
    - **Stitch Design UI Authentication Screens**:
      - **`/login`**: Pixel-accurate implementation of Stitch screen `9bc6910e7e4c42568814b9f575668ab4` featuring terracotta (`#ab2f00`) & emerald (`#006c49`) branding, ambient artisan food artwork, Deliver to / Cart top header, partner portal switcher, and interactive password visibility toggles. Dispatches to `POST /api/v1/auth/login`.
      - **`/register`**: Corresponding registration experience with Full Name, Email Address, Phone Number, Password validation, Terms of Service acceptance, and Epicurean Guild perks toggle. Dispatches to `POST /api/v1/auth/register` (enforcing RBAC `role: CUSTOMER`).

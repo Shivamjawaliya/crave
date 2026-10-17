@@ -660,9 +660,12 @@ export default function HomePage() {
                   <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-1">
-                        <h3 className="font-extrabold text-sm text-[#161c23] group-hover:text-[#ab2f00] transition line-clamp-1">
+                        <Link
+                          href={`/restaurants/${restaurant.id}`}
+                          className="font-extrabold text-sm text-[#161c23] hover:text-[#ab2f00] transition line-clamp-1"
+                        >
                           {restaurant.name}
-                        </h3>
+                        </Link>
                         <div className="flex items-center gap-1 text-xs font-bold text-slate-800 shrink-0">
                           <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                           <span>{ratings[idx % 4]}</span>
@@ -684,14 +687,14 @@ export default function HomePage() {
                       </span>
                     </div>
 
-                    {/* Quick View Menu Button */}
-                    <button
-                      onClick={() => setSelectedRestaurant(restaurant)}
+                    {/* Explore Full Menu Button */}
+                    <Link
+                      href={`/restaurants/${restaurant.id}`}
                       className="w-full mt-2 py-2 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/40 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1"
                     >
-                      <span>View Menu ({restaurant.categories?.reduce((acc, c) => acc + c.items.length, 0)} items)</span>
+                      <span>Explore Menu ({restaurant.categories?.reduce((acc, c) => acc + c.items.length, 0)} items)</span>
                       <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               );
@@ -767,9 +770,12 @@ export default function HomePage() {
                   <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between gap-1">
-                        <h3 className="font-extrabold text-sm text-[#161c23] group-hover:text-[#ab2f00] transition line-clamp-1">
+                        <Link
+                          href={`/restaurants/${restaurant.id}`}
+                          className="font-extrabold text-sm text-[#161c23] hover:text-[#ab2f00] transition line-clamp-1"
+                        >
                           {restaurant.name}
-                        </h3>
+                        </Link>
                         <div className="flex items-center gap-1 text-xs font-bold text-slate-800 shrink-0">
                           <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                           <span>4.8</span>
@@ -788,13 +794,13 @@ export default function HomePage() {
                       <span>{distances[idx % 4]}</span>
                     </div>
 
-                    <button
-                      onClick={() => setSelectedRestaurant(restaurant)}
+                    <Link
+                      href={`/restaurants/${restaurant.id}`}
                       className="w-full mt-2 py-2 text-center text-xs font-bold text-[#006c49] bg-emerald-50 hover:bg-emerald-100 rounded-xl transition flex items-center justify-center gap-1"
                     >
                       <span>Explore Menu</span>
                       <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
+                    </Link>
                   </div>
                 </div>
               );
