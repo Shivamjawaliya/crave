@@ -19,6 +19,7 @@
     "dev:admin": "pnpm --filter admin-dashboard dev",
     "build": "pnpm --recursive run build",
     "build:gateway": "prisma generate --schema=./prisma/schema.prisma && pnpm --filter \"./packages/*\" build && pnpm --filter \"./services/*\" build",
+    "start": "node scripts/start-all-production.js",
     "start:production": "node scripts/start-all-production.js",
     "lint": "pnpm --recursive run lint",
     "test": "pnpm --recursive run test",
