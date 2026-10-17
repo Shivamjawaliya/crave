@@ -24,15 +24,19 @@
     "prisma:generate": "prisma generate --schema=./prisma/schema.prisma",
     "prisma:migrate": "prisma migrate dev --schema=./prisma/schema.prisma",
     "prisma:studio": "prisma studio --schema=./prisma/schema.prisma",
-    "prisma:seed": "ts-node ./prisma/seed.ts",
+    "prisma:seed": "tsx ./prisma/seed.ts",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f"
   },
   "devDependencies": {
     "@prisma/client": "^6.19.3",
+    "@types/bcryptjs": "^2.4.6",
+    "bcryptjs": "^3.0.3",
     "prettier": "^3.5.0",
     "prisma": "^6.19.3",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.3"
   },
   "packageManager": "pnpm@11.21.0"
