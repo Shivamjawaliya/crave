@@ -865,12 +865,19 @@ export default function HomePage() {
                 ];
                 const cardImage = firstItem?.imageUrl || defaultImages[idx % defaultImages.length];
 
+                const totalItemsCount = restaurant.categories
+                  ? restaurant.categories.reduce((acc, c) => acc + c.items.length, 0)
+                  : 0;
+
                 return (
                   <div
                     key={restaurant.id}
                     className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
                   >
-                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                    <Link
+                      href={`/restaurants/${restaurant.id}`}
+                      className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100 block"
+                    >
                       <img
                         src={cardImage}
                         alt={restaurant.name}
@@ -885,14 +892,17 @@ export default function HomePage() {
                         <Clock className="w-3 h-3 text-[#ffdbd1]" />
                         <span>20–30 min</span>
                       </div>
-                    </div>
+                    </Link>
 
                     <div className="p-4 flex-1 flex flex-col justify-between">
                       <div className="space-y-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h3 className="font-extrabold text-base text-[#161c23] group-hover:text-[#ab2f00] transition truncate">
+                          <Link
+                            href={`/restaurants/${restaurant.id}`}
+                            className="font-extrabold text-base text-[#161c23] group-hover:text-[#ab2f00] transition truncate"
+                          >
                             {restaurant.name}
-                          </h3>
+                          </Link>
                           <span className="flex items-center gap-0.5 text-xs font-bold text-slate-700 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 shrink-0">
                             <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
                             <span>4.8</span>
@@ -907,23 +917,13 @@ export default function HomePage() {
                       </div>
 
                       <div className="pt-3">
-                        {restaurant.categories && restaurant.categories.length > 0 ? (
-                          <button
-                            onClick={() => setSelectedRestaurant(restaurant)}
-                            className="w-full py-2 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/40 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1"
-                          >
-                            <span>Quick Menu ({restaurant.categories.reduce((acc, c) => acc + c.items.length, 0)} items)</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </button>
-                        ) : (
-                          <Link
-                            href={`/restaurants/${restaurant.id}`}
-                            className="w-full py-2 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/40 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1"
-                          >
-                            <span>Visit Kitchen</span>
-                            <ChevronRight className="w-3.5 h-3.5" />
-                          </Link>
-                        )}
+                        <Link
+                          href={`/restaurants/${restaurant.id}`}
+                          className="w-full py-2.5 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/50 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1.5 shadow-sm"
+                        >
+                          <span>Visit Menu ({totalItemsCount} items)</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Link>
                       </div>
                     </div>
                   </div>
