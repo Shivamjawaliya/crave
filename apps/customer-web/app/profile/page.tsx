@@ -403,6 +403,30 @@ export default function CustomerProfilePage() {
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
+
+              {/* Restaurant Merchant Switcher */}
+              <div className="bg-gradient-to-br from-[#1e2530] to-[#161c23] text-white rounded-3xl p-6 space-y-3 border border-slate-700/80 shadow-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#ffdbd1] bg-[#ab2f00]/40 px-2 py-0.5 rounded-full border border-[#ab2f00]/50">
+                    MERCHANT PARTNERS
+                  </span>
+                </div>
+                <h4 className="text-sm font-extrabold text-slate-100">Own a Restaurant or Kitchen?</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Log in to the Restaurant Partner Portal to manage live orders, kitchen display, and menus.
+                </p>
+                <div className="pt-1 flex flex-col gap-2">
+                  <a
+                    href="http://localhost:3002/login"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-bold text-center border border-slate-600 transition flex items-center justify-center gap-1.5"
+                  >
+                    <span>Kitchen Portal Login (Port 3002)</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
             </div>
 
             {/* Right Column: Address Management Section */}

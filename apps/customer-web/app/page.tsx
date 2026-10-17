@@ -196,6 +196,7 @@ export default function HomePage() {
         (r) =>
           r.name.toLowerCase().includes(q) ||
           r.description?.toLowerCase().includes(q) ||
+          r.address?.toLowerCase().includes(q) ||
           r.categories?.some((c) =>
             c.items.some((i) => i.name.toLowerCase().includes(q) || i.description?.toLowerCase().includes(q)),
           ),
@@ -207,7 +208,7 @@ export default function HomePage() {
         'Ramen & Bowls': ['ramen', 'umai', 'tantanmen', 'bowls'],
         'Gourmet Burgers': ['burgers', 'smash', 'shake'],
         'Sushi & Poke': ['sushi', 'nori', 'poke', 'nigiri'],
-        'Healthy & Greens': ['greens', 'salad', 'olive', 'vegan'],
+        'Healthy & Greens': ['greens', 'salad', 'olive', 'vegan', 'drinks', 'juice', 'healthy', 'juiy'],
         'Bakery & Dessert': ['bakery', 'tartine', 'croissant', 'sourdough', 'kinfolk'],
         'Meat & Grill': ['wagyu', 'tacos', 'smash', 'kebab'],
       };
@@ -817,7 +818,122 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* 8. TRUST & CURATION PROPS */}
+        {/* 8. ALL REGISTERED KITCHENS / SEARCH RESULTS SECTION */}
+        <section id="all-kitchens" className="space-y-4 pt-2">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-1">
+            <div>
+              <span className="text-[11px] font-extrabold tracking-wider uppercase text-[#ab2f00] block">
+                {searchQuery || selectedCategory !== 'All' ? 'SEARCH RESULTS' : 'EXPLORE ALL KITCHENS'}
+              </span>
+              <h2 className="text-2xl font-black text-[#161c23] tracking-tight">
+                {searchQuery
+                  ? `Kitchens matching "${searchQuery}" (${filteredRestaurants.length})`
+                  : selectedCategory !== 'All'
+                  ? `${selectedCategory} Kitchens (${filteredRestaurants.length})`
+                  : `All Culinary Kitchens (${restaurants.length})`}
+              </h2>
+            </div>
+            <span className="text-xs text-slate-500 font-medium">
+              Live from PostgreSQL database • Real-time kitchen status
+            </span>
+          </div>
+
+          {filteredRestaurants.length === 0 ? (
+            <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-sm space-y-3">
+              <div className="w-12 h-12 rounded-full bg-[#ffdbd1] text-[#ab2f00] flex items-center justify-center mx-auto">
+                <Utensils className="w-6 h-6" />
+              </div>
+              <h3 className="text-base font-bold text-slate-800">No restaurants match your filter</h3>
+              <p className="text-xs text-slate-500">Try searching for other cuisines, dishes, or clearing filters.</p>
+              <button
+                onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }}
+                className="px-4 py-2 bg-[#ab2f00] text-white rounded-xl text-xs font-bold hover:bg-[#8f2700] transition"
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredRestaurants.map((restaurant, idx) => {
+                const firstCat = restaurant.categories?.[0];
+                const firstItem = firstCat?.items?.[0];
+                const defaultImages = [
+                  'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=800&auto=format&fit=crop&q=80',
+                ];
+                const cardImage = firstItem?.imageUrl || defaultImages[idx % defaultImages.length];
+
+                return (
+                  <div
+                    key={restaurant.id}
+                    className="group bg-white rounded-3xl overflow-hidden border border-slate-200/90 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-slate-100">
+                      <img
+                        src={cardImage}
+                        alt={restaurant.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
+                      />
+                      <div className="absolute top-3 left-3">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm bg-slate-900/90 backdrop-blur text-white">
+                          {restaurant.status === 'APPROVED' ? 'VERIFIED KITCHEN' : restaurant.status}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-3 right-3 bg-black/75 backdrop-blur-md text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#ffdbd1]" />
+                        <span>20–30 min</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 flex-1 flex flex-col justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="font-extrabold text-base text-[#161c23] group-hover:text-[#ab2f00] transition truncate">
+                            {restaurant.name}
+                          </h3>
+                          <span className="flex items-center gap-0.5 text-xs font-bold text-slate-700 bg-slate-50 px-2 py-0.5 rounded-full border border-slate-100 shrink-0">
+                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                            <span>4.8</span>
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 line-clamp-1">
+                          {restaurant.description || 'Artisan handcrafted culinary creations.'}
+                        </p>
+                        <p className="text-[11px] text-slate-400 truncate">
+                          📍 {restaurant.address}
+                        </p>
+                      </div>
+
+                      <div className="pt-3">
+                        {restaurant.categories && restaurant.categories.length > 0 ? (
+                          <button
+                            onClick={() => setSelectedRestaurant(restaurant)}
+                            className="w-full py-2 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/40 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1"
+                          >
+                            <span>Quick Menu ({restaurant.categories.reduce((acc, c) => acc + c.items.length, 0)} items)</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        ) : (
+                          <Link
+                            href={`/restaurants/${restaurant.id}`}
+                            className="w-full py-2 text-center text-xs font-bold text-[#ab2f00] bg-[#ffdbd1]/40 hover:bg-[#ffdbd1] rounded-xl transition flex items-center justify-center gap-1"
+                          >
+                            <span>Visit Kitchen</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* 9. TRUST & CURATION PROPS */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6">
           <div className="bg-[#f0f4f8] rounded-2xl p-6 border border-slate-200/80 flex items-start gap-4">
             <div className="w-10 h-10 rounded-2xl bg-white shadow-sm flex items-center justify-center text-[#ab2f00] shrink-0">
