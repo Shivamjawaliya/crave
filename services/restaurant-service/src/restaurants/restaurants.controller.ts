@@ -42,4 +42,10 @@ export class RestaurantsController {
   toggleItem(@Param('id') itemId: string, @Body() body: { isAvailable: boolean }) {
     return this.restaurantsService.toggleItemAvailability(itemId, body.isAvailable);
   }
+
+  @Patch('items/:id')
+  @ApiOperation({ summary: 'Update item details' })
+  updateItem(@Param('id') itemId: string, @Body() body: any) {
+    return this.restaurantsService.updateItem(itemId, body);
+  }
 }

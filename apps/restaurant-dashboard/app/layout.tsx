@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Restaurant Portal — Kitchen Operations & Order Management',
-  description: 'Live order pipeline, menu editing, and status transitions.',
+  title: 'Crave Kitchen — Partner Portal & KDS',
+  description: 'Live kitchen display system, menu & 86 inventory control, and performance settlement ledger.',
 };
 
 export default function RootLayout({
@@ -12,8 +12,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className="min-h-screen bg-[#161c23] text-slate-100 antialiased selection:bg-[#ab2f00]/30 selection:text-[#ffdbd1]">
+    <html lang="en">
+      <body className="bg-[#f5fbf6] font-sans text-[#171d1a] antialiased min-h-screen">
         {children}
       </body>
     </html>

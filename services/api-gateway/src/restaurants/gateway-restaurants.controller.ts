@@ -1,6 +1,9 @@
 import {
   Controller,
   Get,
+  Post,
+  Patch,
+  Body,
   Param,
   Query,
   HttpException,
@@ -67,6 +70,78 @@ export class GatewayRestaurantsController {
         error.message || 'Restaurant service unavailable',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
+    }
+  }
+
+  @Post(':id/categories')
+  @ApiOperation({ summary: 'Add menu category to restaurant' })
+  async addCategory(@Param('id') restaurantId: string, @Body() body: any) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/${restaurantId}/categories`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to add category', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Post('categories/:id/items')
+  @ApiOperation({ summary: 'Add menu item to category' })
+  async addItem(@Param('id') categoryId: string, @Body() body: any) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/categories/${categoryId}/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to add item', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Patch('items/:id/availability')
+  @ApiOperation({ summary: 'Toggle item availability in real-time' })
+  async toggleAvailability(@Param('id') itemId: string, @Body() body: any) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/items/${itemId}/availability`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to toggle availability', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Patch('items/:id')
+  @ApiOperation({ summary: 'Update menu item details' })
+  async updateItem(@Param('id') itemId: string, @Body() body: any) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/items/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to update item', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
     }
   }
 }

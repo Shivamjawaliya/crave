@@ -73,4 +73,18 @@ export class RestaurantsService {
       data: { isAvailable },
     });
   }
+
+  async updateItem(itemId: string, data: any) {
+    const updateData: any = {};
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.pricePaise !== undefined) updateData.pricePaise = data.pricePaise;
+    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+    if (data.isAvailable !== undefined) updateData.isAvailable = data.isAvailable;
+
+    return this.prisma.menuItem.update({
+      where: { id: itemId },
+      data: updateData,
+    });
+  }
 }
