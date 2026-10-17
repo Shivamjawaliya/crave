@@ -255,6 +255,9 @@ All four frontend applications are built with **Next.js 15**, **React 19**, and 
    - Dynamic restaurant menu viewing with item availability badges.
    - Zustand-powered cart store with single-restaurant conflict protection.
    - Order history and real-time tracking screens.
+   - **Stitch Design UI Authentication Screens**:
+     - **`/login`**: Pixel-accurate implementation of Stitch screen `9bc6910e7e4c42568814b9f575668ab4` featuring terracotta (`#ab2f00`) & emerald (`#006c49`) branding, ambient artisan food artwork, Deliver to / Cart top header, partner portal switcher, and interactive password visibility toggles. Dispatches to `POST /api/v1/auth/login`.
+     - **`/register`**: Corresponding registration experience with Full Name, Email Address, Phone Number, Password validation, Terms of Service acceptance, and Epicurean Guild perks toggle. Dispatches to `POST /api/v1/auth/register`.
 
 2. **`apps/restaurant-dashboard`** (`http://localhost:3002`):
    - Kitchen Display System (KDS) categorized into 3 pipelines:

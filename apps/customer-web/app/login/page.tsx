@@ -45,18 +45,32 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      // Attempt login via Gateway or Auth Service
-      const endpoint =
-        process.env.NEXT_PUBLIC_AUTH_URL || 'http://localhost:4001/login';
+      // Primary: API Gateway route /api/v1/auth/login (Port 3001)
+      // Fallback: Auth Service route /login (Port 4001)
+      const primaryUrl =
+        process.env.NEXT_PUBLIC_GATEWAY_URL ||
+        'http://localhost:3001/api/v1/auth/login';
 
-      const response = await fetch(endpoint, {
+      let response = await fetch(primaryUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: identifier.trim(),
           password,
         }),
-      });
+      }).catch(() => null);
+
+      if (!response || !response.ok) {
+        // Fallback to Auth Microservice directly
+        response = await fetch('http://localhost:4001/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: identifier.trim(),
+            password,
+          }),
+        });
+      }
 
       const data = await response.json();
 

@@ -14,9 +14,21 @@ export class AuthController {
     return this.authService.register(body);
   }
 
+  @Post('auth/register')
+  @ApiOperation({ summary: 'Register new user account (prefixed route)' })
+  registerPrefixed(@Body() body: { name: string; email: string; password: string; role?: UserRole }) {
+    return this.authService.register(body);
+  }
+
   @Post('login')
   @ApiOperation({ summary: 'Login user and issue tokens' })
   login(@Body() body: { email: string; password: string }) {
+    return this.authService.login(body);
+  }
+
+  @Post('auth/login')
+  @ApiOperation({ summary: 'Login user and issue tokens (prefixed route)' })
+  loginPrefixed(@Body() body: { email: string; password: string }) {
     return this.authService.login(body);
   }
 
