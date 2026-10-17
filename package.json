@@ -1,8 +1,8 @@
 {
-  "name": "food-platform-monorepo",
+  "name": "crave-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Food Delivery and Restaurant Management Platform Monorepo",
+  "description": "Crave — Full-Stack Food Delivery & Restaurant Platform Monorepo",
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" dev",
     "dev:services": "pnpm --parallel --filter \"./services/*\" dev",

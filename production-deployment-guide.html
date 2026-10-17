@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FoodPlatform — Zero-to-Live Production Deployment Guide</title>
+  <title>Crave — Zero-to-Live Production Deployment Guide</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -52,10 +52,10 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="font-extrabold text-lg text-white tracking-tight">FoodPlatform Production Guide</h1>
+            <h1 class="font-extrabold text-lg text-white tracking-tight">Crave Production Guide</h1>
             <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-orange-500/20 text-orange-400 border border-orange-500/30 rounded-full">Localhost ➔ Live</span>
           </div>
-          <p class="text-xs text-slate-400">Step-by-step roadmap to launch your Food Delivery Microservices platform live</p>
+          <p class="text-xs text-slate-400">Step-by-step roadmap to launch your Crave Food Delivery Microservices platform live</p>
         </div>
       </div>
 
@@ -107,7 +107,7 @@
           <span class="text-xs uppercase font-extrabold tracking-wider text-orange-400 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20 inline-block">
             Production Roadmap (Easy English)
           </span>
-          <h2 class="text-2xl sm:text-3xl font-black text-white">How to take FoodPlatform Live in ~45 Minutes</h2>
+          <h2 class="text-2xl sm:text-3xl font-black text-white">How to take Crave Live in ~45 Minutes</h2>
           <p class="text-slate-300 text-sm leading-relaxed">
             Your application is composed of <strong>4 Next.js frontend portals</strong>, <strong>7 NestJS microservices</strong>, <strong>PostgreSQL</strong>, <strong>Redis</strong>, and <strong>RabbitMQ</strong>. Follow these 9 steps sequentially on a single Linux cloud server (VPS) to host your entire business under your own domain name with free SSL (HTTPS).
           </p>
@@ -300,12 +300,12 @@ sudo systemctl enable docker nginx</pre>
             <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-800 text-slate-300">5 mins</span>
           </div>
           <div class="pl-10 space-y-3">
-            <p class="text-sm text-slate-300">Clone your repository into the standard production directory <code class="text-orange-300 font-mono">/var/www/foodplatform</code>:</p>
+            <p class="text-sm text-slate-300">Clone your repository into the standard production directory <code class="text-orange-300 font-mono">/var/www/crave</code>:</p>
             <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
               <button onclick="copyCode('clone-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
-              <pre id="clone-cmd">sudo mkdir -p /var/www/foodplatform
-cd /var/www/foodplatform
-git clone https://github.com/YOUR_GITHUB_USERNAME/foodplatform.git .</pre>
+              <pre id="clone-cmd">sudo mkdir -p /var/www/crave
+cd /var/www/crave
+git clone https://github.com/YOUR_GITHUB_USERNAME/crave.git .</pre>
             </div>
           </div>
         </div>
@@ -374,9 +374,9 @@ docker compose -f docker-compose.prod.yml exec auth-service npx prisma migrate d
             <p class="text-sm text-slate-300">Nginx listens on port 80 and 443 and routes incoming requests from your domains to the respective Docker container port.</p>
             <div class="relative bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-slate-200">
               <button onclick="copyCode('nginx-cmd')" class="absolute top-2 right-2 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-[11px] text-slate-200 rounded-lg transition">Copy</button>
-              <pre id="nginx-cmd">sudo nano /etc/nginx/sites-available/foodplatform
+              <pre id="nginx-cmd">sudo nano /etc/nginx/sites-available/crave
 # (Paste the full Nginx config from the "Nginx & SSL Config" tab above)
-sudo ln -s /etc/nginx/sites-available/foodplatform /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/crave /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx</pre>
             </div>
           </div>
@@ -402,7 +402,7 @@ sudo nginx -t && sudo systemctl reload nginx</pre>
             </div>
             <div class="p-3 bg-emerald-950/40 border border-emerald-800/80 rounded-2xl text-xs text-emerald-300 flex items-center gap-2">
               <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-              <span><strong>Congratulations!</strong> Your FoodPlatform is now officially LIVE on the internet with green HTTPS padlocks!</span>
+              <span><strong>Congratulations!</strong> Your Crave platform is now officially LIVE on the internet with green HTTPS padlocks!</span>
             </div>
           </div>
         </div>
@@ -499,7 +499,7 @@ sudo nginx -t && sudo systemctl reload nginx</pre>
         <div class="flex items-center justify-between">
           <div>
             <h2 class="text-xl font-black text-white">Production Nginx Reverse Proxy Configuration</h2>
-            <p class="text-xs text-slate-400 mt-1">Place this in <code class="text-orange-400 font-mono">/etc/nginx/sites-available/foodplatform</code> on your Ubuntu server.</p>
+            <p class="text-xs text-slate-400 mt-1">Place this in <code class="text-orange-400 font-mono">/etc/nginx/sites-available/crave</code> on your Ubuntu server.</p>
           </div>
           <button onclick="copyCode('full-nginx-conf')" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-xs font-bold text-white rounded-xl transition shadow-md">Copy Nginx Conf</button>
         </div>
@@ -674,7 +674,7 @@ server {
 
   <!-- Footer -->
   <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500 bg-slate-950">
-    FoodPlatform Microservices • Generated for Production Launch • Created on 2026-10-18
+    Crave Microservices • Generated for Production Launch • Created on 2026-10-18
   </footer>
 
   <!-- Script for Tabs, Copying & Checkbox Progress persistence -->

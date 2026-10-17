@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'FoodPlatform — Order Delicious Food Online',
+  title: 'Crave — Order Delicious Food Online',
   description: 'Fast, fresh, and delivered right to your doorstep.',
 };
 

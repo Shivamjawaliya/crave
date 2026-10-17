@@ -1,4 +1,4 @@
-# Food Delivery & Restaurant Management Platform
+# Crave — Food Delivery & Restaurant Platform
 
 A production-grade, modular full-stack food delivery platform built with **NestJS**, **Next.js**, **PostgreSQL**, **Prisma ORM**, **Redis**, **RabbitMQ**, **Socket.IO**, and **Razorpay**.
 
@@ -7,7 +7,7 @@ A production-grade, modular full-stack food delivery platform built with **NestJ
 ## 🏗️ Architecture & Repository Structure
 
 ```
-fooapp/
+crave/
 ├── apps/
 │   ├── customer-web/          # Next.js customer ordering portal (:3000)
 │   ├── restaurant-dashboard/  # Kitchen display & order management (:3002)

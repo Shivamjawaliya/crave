@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Platform Super Admin — FoodPlatform Governance',
+  title: 'Crave Admin — Platform Governance',
   description: 'Auditing, restaurant approvals, account access, and platform oversight.',
 };
 

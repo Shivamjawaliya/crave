@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FoodPlatform — 100% Free Hosting Guide (Vercel + Render)</title>
+  <title>Crave — 100% Free Hosting Guide (Vercel + Render)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -53,7 +53,7 @@
             <h1 class="font-extrabold text-lg text-white tracking-tight">100% Free Hosting Guide</h1>
             <span class="px-2 py-0.5 text-[10px] uppercase font-bold tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">Vercel + Render + Free DB</span>
           </div>
-          <p class="text-xs text-slate-400">Deploy FoodPlatform completely free of cost ($0/month forever) using cloud free tiers</p>
+          <p class="text-xs text-slate-400">Deploy Crave completely free of cost ($0/month forever) using cloud free tiers</p>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
           <span class="text-xs uppercase font-extrabold tracking-wider text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 inline-block">
             Zero Dollar Budget Strategy
           </span>
-          <h2 class="text-2xl sm:text-3xl font-black text-white">How to Host FoodPlatform 100% Free</h2>
+          <h2 class="text-2xl sm:text-3xl font-black text-white">How to Host Crave 100% Free</h2>
           <p class="text-slate-300 text-sm leading-relaxed">
             You do <strong>not</strong> need to spend a single penny to host this platform! By combining the industry's most generous free cloud tiers, your platform will run on real cloud infrastructure with free HTTPS domains, automatic SSL, and global CDNs.
           </p>
@@ -312,7 +312,7 @@ git push origin main</pre>
             <p>2. Click <strong>"New +"</strong> $\to$ <strong>"Web Service"</strong> $\to$ Select your repository.</p>
             <p>3. Configure the settings:</p>
             <div class="bg-slate-850 p-4 rounded-xl border border-slate-800 space-y-2 font-mono text-xs">
-              <div><strong>Name:</strong> <span class="text-emerald-400">food-platform-api</span></div>
+              <div><strong>Name:</strong> <span class="text-emerald-400">crave-api</span></div>
               <div><strong>Runtime:</strong> <span class="text-emerald-400">Node</span></div>
               <div><strong>Build Command:</strong> <span class="text-orange-400">pnpm install --frozen-lockfile && pnpm prisma:generate && pnpm --filter api-gateway build</span></div>
               <div><strong>Start Command:</strong> <span class="text-orange-400">node services/api-gateway/dist/main.js</span></div>
@@ -330,7 +330,7 @@ GATEWAY_PORT=3001
 PORT=3001</pre>
             </div>
             <p>5. Click <strong>"Create Web Service"</strong>!</p>
-            <p class="text-slate-400">Render will build your API Gateway and give you a free live URL: <code class="text-emerald-400 font-bold">https://food-platform-api.onrender.com</code>.</p>
+            <p class="text-slate-400">Render will build your API Gateway and give you a free live URL: <code class="text-emerald-400 font-bold">https://crave-api.onrender.com</code>.</p>
           </div>
         </div>
 
@@ -360,8 +360,8 @@ PORT=3001</pre>
             </ul>
             <p>3. Under <strong>Environment Variables</strong>, add:</p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400">
-              NEXT_PUBLIC_GATEWAY_URL = https://food-platform-api.onrender.com/api/v1<br>
-              NEXT_PUBLIC_SOCKET_URL = https://food-platform-api.onrender.com
+              NEXT_PUBLIC_GATEWAY_URL = https://crave-api.onrender.com/api/v1<br>
+              NEXT_PUBLIC_SOCKET_URL = https://crave-api.onrender.com
             </div>
             <p>4. Click <strong>"Deploy"</strong>!</p>
             <p class="text-slate-400">Vercel compiles the app and gives you a free live URL: <code class="text-emerald-400 font-bold">https://crave-food.vercel.app</code>.</p>
@@ -402,7 +402,7 @@ PORT=3001</pre>
             </div>
           </div>
           <div class="pl-9 space-y-3 text-xs text-slate-300">
-            <p>In your Render Dashboard $\to$ <code class="text-emerald-400">food-platform-api</code> $\to$ Environment Variables, update your CORS origins:</p>
+            <p>In your Render Dashboard $\to$ <code class="text-emerald-400">crave-api</code> $\to$ Environment Variables, update your CORS origins:</p>
             <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 font-mono text-emerald-400 space-y-1">
               <div>WEB_ORIGIN = https://crave-food.vercel.app</div>
               <div>RESTAURANT_DASHBOARD_ORIGIN = https://restaurant-kds.vercel.app</div>
@@ -434,7 +434,7 @@ PORT=3001</pre>
             </p>
             <div class="bg-slate-900 p-3 rounded-xl border border-slate-800 font-mono text-slate-300 space-y-1">
               <p>1. Go to <a href="https://cron-job.org" target="_blank" class="text-emerald-400 underline">cron-job.org</a> or <a href="https://uptimerobot.com" target="_blank" class="text-emerald-400 underline">uptimerobot.com</a> (100% Free).</p>
-              <p>2. Create a HTTP monitor pointing to: <code class="text-emerald-400">https://food-platform-api.onrender.com/api/v1/health</code></p>
+              <p>2. Create a HTTP monitor pointing to: <code class="text-emerald-400">https://crave-api.onrender.com/api/v1/health</code></p>
               <p>3. Set the interval to ping every <strong>10 minutes</strong>.</p>
               <p class="text-slate-400">✨ This keeps your Render server warm, active, and instant 24 hours a day with 0 cold starts!</p>
             </div>
@@ -458,7 +458,7 @@ PORT=3001</pre>
 
   <!-- Footer -->
   <footer class="border-t border-slate-800 py-6 text-center text-xs text-slate-500 bg-slate-950">
-    FoodPlatform Free Tier Blueprint • Vercel + Render Deployment Edition • Generated on 2026-10-18
+    Crave Free Tier Blueprint • Vercel + Render Deployment Edition • Generated on 2026-10-18
   </footer>
 
   <!-- Script for Tabs, Copying & Checkbox Progress persistence -->

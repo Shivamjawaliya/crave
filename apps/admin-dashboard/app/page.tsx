@@ -38,7 +38,7 @@ export default function AdminDashboardPage() {
             <Shield className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-extrabold text-lg text-white">FoodPlatform Master Admin</h1>
+            <h1 className="font-extrabold text-lg text-white">Crave Master Admin</h1>
             <p className="text-xs text-slate-400">System Oversight & Governance</p>
           </div>
         </div>

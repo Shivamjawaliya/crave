@@ -27,7 +27,7 @@ This project is a production-grade, modular monorepo for a **Food Delivery and R
 ## 2. Monorepo Directory & Folder Hierarchy
 
 ```
-fooapp/
+crave/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                     # GitHub Actions CI for linting, testing, and building

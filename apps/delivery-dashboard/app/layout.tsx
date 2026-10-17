@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Delivery Partner Portal — Live Trips & Navigation',
+  title: 'Crave Fleet — Delivery Partner Portal',
   description: 'Accept delivery jobs, update pickup/delivery progress, and stream GPS locations.',
 };
 
