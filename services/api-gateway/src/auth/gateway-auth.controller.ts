@@ -100,6 +100,76 @@ export class GatewayAuthController {
     }
   }
 
+  @Post('restaurant/register')
+  @ApiOperation({ summary: 'Register restaurant owner account and provision restaurant' })
+  async registerRestaurant(
+    @Body()
+    body: {
+      name: string;
+      email: string;
+      password: string;
+      restaurantName?: string;
+      restaurantAddress?: string;
+      restaurantDescription?: string;
+    },
+  ) {
+    try {
+      const response = await fetch(`${this.authServiceUrl}/restaurant/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(
+          data.message || 'Restaurant owner registration failed',
+          response.status,
+        );
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Post('restaurant/login')
+  @ApiOperation({ summary: 'Login restaurant owner (RBAC enforced)' })
+  async loginRestaurant(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+    },
+  ) {
+    try {
+      const response = await fetch(`${this.authServiceUrl}/restaurant/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(
+          data.message || 'Invalid email or password',
+          response.status,
+        );
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile via JWT Bearer token' })

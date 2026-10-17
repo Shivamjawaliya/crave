@@ -123,4 +123,23 @@ export class OrdersService {
       },
     });
   }
+
+  async getRestaurantOrders(restaurantId: string) {
+    return this.prisma.order.findMany({
+      where: { restaurantId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: true,
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        payment: true,
+        delivery: true,
+      },
+    });
+  }
 }

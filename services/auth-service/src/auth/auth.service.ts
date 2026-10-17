@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -79,14 +80,89 @@ export class AuthService {
   }
 
   /**
-   * Authenticate user with email and password.
+   * Register a Restaurant Owner account.
+   * RBAC Enforcement: Strictly assigned the RESTAURANT_OWNER role.
+   * Provisions associated Restaurant entity in PostgreSQL.
+   */
+  async registerRestaurantOwner(data: {
+    name: string;
+    email: string;
+    password: string;
+    restaurantName?: string;
+    restaurantAddress?: string;
+    restaurantDescription?: string;
+  }) {
+    const email = data.email.trim().toLowerCase();
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existing) {
+      throw new ConflictException('Email is already registered. Please sign in instead.');
+    }
+
+    if (!data.password || data.password.length < 8) {
+      throw new UnauthorizedException('Password must be at least 8 characters long.');
+    }
+
+    const passwordHash = await bcrypt.hash(data.password, 10);
+
+    // RBAC: Enforce RESTAURANT_OWNER role
+    const user = await this.prisma.user.create({
+      data: {
+        name: data.name.trim(),
+        email,
+        passwordHash,
+        role: UserRole.RESTAURANT_OWNER,
+        isActive: true,
+      },
+    });
+
+    // Provision restaurant entity for owner
+    const restaurant = await this.prisma.restaurant.create({
+      data: {
+        ownerId: user.id,
+        name: data.restaurantName?.trim() || `${user.name}'s Kitchen`,
+        address: data.restaurantAddress?.trim() || 'Culinary Street, Downtown',
+        description:
+          data.restaurantDescription?.trim() ||
+          'Artisan handcrafted culinary creations.',
+        status: 'APPROVED',
+      },
+    });
+
+    const tokens = await this.generateTokens(user.id, user.email, user.role);
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        restaurant: {
+          id: restaurant.id,
+          name: restaurant.name,
+          address: restaurant.address,
+          description: restaurant.description,
+        },
+      },
+      ...tokens,
+    };
+  }
+
+  /**
+   * Authenticate user with email and password with optional RBAC role enforcement.
    * Returns JWT accessToken and refreshToken.
    */
-  async login(data: { email: string; password: string }) {
+  async login(data: { email: string; password: string; requiredRole?: string }) {
     const email = data.email.trim().toLowerCase();
 
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        restaurants: {
+          select: { id: true, name: true, address: true, description: true },
+        },
+      },
     });
 
     if (!user) {
@@ -102,6 +178,15 @@ export class AuthService {
       throw new UnauthorizedException('Your account has been deactivated. Please contact support.');
     }
 
+    // RBAC Security Enforcement
+    if (data.requiredRole && user.role !== data.requiredRole && user.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        `Access restricted: This portal is exclusively for ${data.requiredRole}s. Your account role is ${user.role}.`,
+      );
+    }
+
+    const restaurant = user.restaurants?.[0] || null;
+
     const tokens = await this.generateTokens(user.id, user.email, user.role);
     return {
       user: {
@@ -109,6 +194,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         role: user.role,
+        restaurant,
       },
       ...tokens,
     };

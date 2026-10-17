@@ -59,6 +59,50 @@ export class AuthController {
     return this.authService.login(body);
   }
 
+  @Post('restaurant/register')
+  @ApiOperation({ summary: 'Register restaurant owner account and provision restaurant' })
+  registerRestaurant(
+    @Body()
+    body: {
+      name: string;
+      email: string;
+      password: string;
+      restaurantName?: string;
+      restaurantAddress?: string;
+      restaurantDescription?: string;
+    },
+  ) {
+    return this.authService.registerRestaurantOwner(body);
+  }
+
+  @Post('auth/restaurant/register')
+  @ApiOperation({ summary: 'Register restaurant owner account (prefixed route)' })
+  registerRestaurantPrefixed(
+    @Body()
+    body: {
+      name: string;
+      email: string;
+      password: string;
+      restaurantName?: string;
+      restaurantAddress?: string;
+      restaurantDescription?: string;
+    },
+  ) {
+    return this.authService.registerRestaurantOwner(body);
+  }
+
+  @Post('restaurant/login')
+  @ApiOperation({ summary: 'Login restaurant owner (RBAC enforced)' })
+  loginRestaurant(@Body() body: { email: string; password: string }) {
+    return this.authService.login({ ...body, requiredRole: 'RESTAURANT_OWNER' });
+  }
+
+  @Post('auth/restaurant/login')
+  @ApiOperation({ summary: 'Login restaurant owner (prefixed route, RBAC enforced)' })
+  loginRestaurantPrefixed(@Body() body: { email: string; password: string }) {
+    return this.authService.login({ ...body, requiredRole: 'RESTAURANT_OWNER' });
+  }
+
   @Get('auth/me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile via JWT Bearer token' })

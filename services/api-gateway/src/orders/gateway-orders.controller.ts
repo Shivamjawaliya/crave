@@ -97,6 +97,27 @@ export class GatewayOrdersController {
     }
   }
 
+  @Get('restaurant/:restaurantId')
+  @ApiOperation({ summary: 'Get all live orders for a restaurant' })
+  async getRestaurantOrders(@Param('restaurantId') restaurantId: string) {
+    try {
+      const response = await fetch(
+        `${this.orderServiceUrl}/orders/restaurant/${restaurantId}`,
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(data.message || 'Failed to fetch restaurant orders', response.status);
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Order service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get single order details' })
   async getOrder(@Param('id') id: string) {

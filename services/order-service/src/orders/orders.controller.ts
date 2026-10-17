@@ -26,6 +26,12 @@ export class OrdersController {
     return this.ordersService.getCustomerOrders(customerId);
   }
 
+  @Get('restaurant/:restaurantId')
+  @ApiOperation({ summary: 'Get all live orders for a restaurant' })
+  getRestaurantOrders(@Param('restaurantId') restaurantId: string) {
+    return this.ordersService.getRestaurantOrders(restaurantId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get order details' })
   findOrder(@Param('id') id: string) {

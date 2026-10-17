@@ -165,6 +165,8 @@ The backend capabilities are organized into clear domain modules across the micr
 1. **`AuthModule`**:
    - `POST /api/v1/auth/register`: Public customer registration. Strictly enforces RBAC: any user registering from the user portal is assigned `role: CUSTOMER` in PostgreSQL, preventing privilege escalation.
    - `POST /api/v1/auth/login`: Authenticates bcrypt password hash, creates a database `RefreshSession` (7d expiry), and returns JWT `accessToken` (15m) + `refreshToken` (7d).
+   - `POST /api/v1/auth/restaurant/register`: Merchant registration. Assigns `role: RESTAURANT_OWNER` and provisions associated `Restaurant` entity in PostgreSQL.
+   - `POST /api/v1/auth/restaurant/login`: Merchant login. Strictly enforces RBAC: validates credentials and verifies role is `RESTAURANT_OWNER` or `ADMIN`, rejecting customers with HTTP 403 Forbidden. Returns JWT + attached restaurant entity.
    - `GET /api/v1/auth/me`: Verifies JWT Bearer token signature and expiration, looks up active status in PostgreSQL, and returns profile.
    - `POST /api/v1/auth/refresh`: Validates refresh token against database `RefreshSession`, rotates tokens, and revokes prior session.
    - `POST /api/v1/auth/logout`: Revokes database `RefreshSession` and invalidates client session.
@@ -275,11 +277,19 @@ All four frontend applications are built with **Next.js 15**, **React 19**, and 
      - **`/register`**: Corresponding registration experience with Full Name, Email Address, Phone Number, Password validation, Terms of Service acceptance, and Epicurean Guild perks toggle. Dispatches to `POST /api/v1/auth/register` (enforcing RBAC `role: CUSTOMER`).
 
 2. **`apps/restaurant-dashboard`** (`http://localhost:3002`):
-   - Kitchen Display System (KDS) categorized into 3 pipelines:
-     - **Incoming Orders** (Accept / Reject)
-     - **Kitchen Cooking** (Mark Ready for Pickup)
-     - **Ready for Delivery** (Awaiting Delivery Partner)
-   - Real-time kitchen online status badge.
+   - **Authentication & RBAC Enforcement**:
+     - **`/login`**: Merchant & Executive Chef portal login enforcing strict RBAC verification for role `RESTAURANT_OWNER` or `ADMIN`. Rejects customer credentials with HTTP 403 Forbidden. Features interactive demo credentials selector (`Chef Marco`), password visibility toggle, and token storage in `localStorage`.
+     - **`/register`**: Partner onboarding portal. Registers account with role `RESTAURANT_OWNER`, and atomically provisions a corresponding `Restaurant` entity in PostgreSQL (`APPROVED` status).
+     - **Auth Guard (`/`)**: Automatically checks for an active owner session on mount; redirects unauthenticated visitors to `/login`.
+   - **Executive Kitchen Display System (KDS)**:
+     - Header displaying the authenticated owner's real restaurant brand name, address, active orders counter, and live online/busy kitchen status toggle.
+     - 4-stage Kanban workflow:
+       - **Incoming Tickets** (Accept / Reject with live status updates)
+       - **Kitchen Cooking** (Mark Ready for Pickup)
+       - **Awaiting Courier** (Dispatched to delivery partners)
+       - **Completed** (Archive of delivered tickets)
+     - Live order status transition dispatching to `PATCH /api/v1/orders/:id/status`.
+     - Direct query pipeline via `GET /api/v1/orders/restaurant/:restaurantId`.
 
 3. **`apps/delivery-dashboard`** (`http://localhost:3003`):
    - Partner availability toggle (Online / Offline).
