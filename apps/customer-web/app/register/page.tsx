@@ -98,6 +98,7 @@ export default function RegisterPage() {
 
       if (data.accessToken) {
         localStorage.setItem('access_token', data.accessToken);
+        document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400; SameSite=Lax`;
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
@@ -106,19 +107,11 @@ export default function RegisterPage() {
       setIsSuccess(true);
       setTimeout(() => {
         router.push('/');
-      }, 1200);
+      }, 1000);
     } catch (err: any) {
-      // Fallback simulation for client testing
-      if (email && password.length >= 8) {
-        setIsSuccess(true);
-        setTimeout(() => {
-          router.push('/');
-        }, 1200);
-      } else {
-        setErrorMessage(
-          err.message || 'Unable to register. Please check your details.',
-        );
-      }
+      setErrorMessage(
+        err.message || 'Unable to register. Please check your details.',
+      );
     } finally {
       setIsLoading(false);
     }

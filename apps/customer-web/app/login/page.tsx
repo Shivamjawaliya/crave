@@ -80,6 +80,7 @@ export default function LoginPage() {
 
       if (data.accessToken) {
         localStorage.setItem('access_token', data.accessToken);
+        document.cookie = `access_token=${data.accessToken}; path=/; max-age=86400; SameSite=Lax`;
         if (data.user) {
           localStorage.setItem('user', JSON.stringify(data.user));
         }
@@ -90,18 +91,9 @@ export default function LoginPage() {
         router.push('/');
       }, 1000);
     } catch (err: any) {
-      // If service is offline, fallback to simulation for customer demo
-      if (
-        identifier.trim() === 'customer@gmail.com' &&
-        password === 'Password@123'
-      ) {
-        setIsSuccess(true);
-        setTimeout(() => {
-          router.push('/');
-        }, 1000);
-      } else {
-        setErrorMessage(err.message || 'Authentication failed. Please verify credentials.');
-      }
+      setErrorMessage(
+        err.message || 'Authentication failed. Please verify credentials.',
+      );
     } finally {
       setIsLoading(false);
     }

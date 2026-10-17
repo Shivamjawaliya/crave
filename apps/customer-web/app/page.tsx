@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Clock, ShieldCheck, MapPin, ArrowRight } from 'lucide-react';
+import NavbarAuth from '../components/NavbarAuth';
 
 export default function HomePage() {
   return (
@@ -31,12 +32,7 @@ export default function HomePage() {
             >
               My Orders
             </Link>
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-sm transition"
-            >
-              Sign In
-            </Link>
+            <NavbarAuth />
           </div>
         </div>
       </header>

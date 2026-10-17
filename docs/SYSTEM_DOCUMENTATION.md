@@ -163,10 +163,11 @@ The database is built on PostgreSQL using integer paise arithmetic (`pricePaise`
 The backend capabilities are organized into clear domain modules across the microservices:
 
 1. **`AuthModule`**:
-   - `POST /api/v1/auth/register`: Creates accounts with bcrypt hashing.
-   - `POST /api/v1/auth/login`: Issues 15-minute JWT access tokens and 7-day refresh tokens.
-   - `POST /api/v1/auth/refresh`: Rotates refresh tokens and revokes previous sessions.
-   - `POST /api/v1/auth/logout`: Revokes active sessions.
+   - `POST /api/v1/auth/register`: Public customer registration. Strictly enforces RBAC: any user registering from the user portal is assigned `role: CUSTOMER` in PostgreSQL, preventing privilege escalation.
+   - `POST /api/v1/auth/login`: Authenticates bcrypt password hash, creates a database `RefreshSession` (7d expiry), and returns JWT `accessToken` (15m) + `refreshToken` (7d).
+   - `GET /api/v1/auth/me`: Verifies JWT Bearer token signature and expiration, looks up active status in PostgreSQL, and returns profile.
+   - `POST /api/v1/auth/refresh`: Validates refresh token against database `RefreshSession`, rotates tokens, and revokes prior session.
+   - `POST /api/v1/auth/logout`: Revokes database `RefreshSession` and invalidates client session.
 
 2. **`UsersModule`**:
    - `GET /api/v1/users/me`: Current user profile, addresses, and delivery profiles.

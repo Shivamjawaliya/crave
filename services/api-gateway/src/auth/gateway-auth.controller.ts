@@ -4,6 +4,7 @@ import {
   Get,
   Body,
   Param,
+  Headers,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
@@ -22,7 +23,7 @@ export class GatewayAuthController {
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new customer account' })
+  @ApiOperation({ summary: 'Register a new customer account (RBAC: Forced to CUSTOMER)' })
   async register(
     @Body()
     body: {
@@ -32,11 +33,21 @@ export class GatewayAuthController {
       role?: string;
     },
   ) {
+    // RBAC Security Enforcement:
+    // Any registration via the public gateway / user portal is strictly restricted
+    // to role 'CUSTOMER'. Any requested role from the client is safely overridden.
+    const safePayload = {
+      name: body.name,
+      email: body.email,
+      password: body.password,
+      role: 'CUSTOMER',
+    };
+
     try {
       const response = await fetch(`${this.authServiceUrl}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(safePayload),
       });
 
       const data = await response.json();
@@ -86,6 +97,49 @@ export class GatewayAuthController {
         error.message || 'Auth service unavailable',
         HttpStatus.SERVICE_UNAVAILABLE,
       );
+    }
+  }
+
+  @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current user profile via JWT Bearer token' })
+  async getMe(@Headers('authorization') authHeader?: string) {
+    if (!authHeader) {
+      throw new HttpException('Missing authorization header', HttpStatus.UNAUTHORIZED);
+    }
+
+    try {
+      const response = await fetch(`${this.authServiceUrl}/auth/me`, {
+        headers: { Authorization: authHeader },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new HttpException(data.message || 'Unauthorized', response.status);
+      }
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Revoke active authentication session' })
+  async logout(@Body() body: { refreshToken?: string }) {
+    try {
+      const response = await fetch(`${this.authServiceUrl}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      return await response.json();
+    } catch {
+      return { success: true, message: 'Logged out' };
     }
   }
 
