@@ -300,12 +300,104 @@ process.on('SIGTERM', () => cleanup(0));
 
 ---
 
-## 8. Verification & Test Proofs
+## 8. User Addresses & Profile In-Process Fallback (`GatewayUsersController`)
+
+### The Problem on Render Free Tier
+* When a customer opens the **Delivery Address** modal and saves an address (`POST /api/v1/users/:id/addresses`), `GatewayUsersController` proxied to `http://localhost:4001/users/:id/addresses`.
+* Because `auth-service` wasn't running on port 4001, saving or fetching addresses failed with `503 Service Unavailable: fetch failed`.
+
+### Comparison: Old vs. New Implementation
+
+#### 🔴 OLD (`services/api-gateway/src/users/gateway-users.controller.ts`)
+```typescript
+@Post(':id/addresses')
+async addAddress(@Param('id') id: string, @Body() body: any) {
+  const response = await fetch(`${this.authServiceUrl}/users/${id}/addresses`, { ... });
+  // Throws 503 if auth-service on port 4001 is unavailable
+}
+```
+
+#### 🟢 NEW (`services/api-gateway/src/users/gateway-users.controller.ts`)
+```typescript
+@Post(':id/addresses')
+async addAddress(@Param('id') id: string, @Body() body: any) {
+  try {
+    const response = await fetch(`${this.authServiceUrl}/users/${id}/addresses`, { ... });
+    const data = await response.json();
+    if (!response.ok) throw new HttpException(data.message, response.status);
+    return data;
+  } catch (error: any) {
+    if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) throw error;
+    // In-process fallback: directly creates Address record in Supabase PostgreSQL
+    return this.inProcessAuth.addAddress(id, body);
+  }
+}
+```
+
+---
+
+## 9. Frontend Gateway URL Suffix & Removal of Localhost Browser Fallbacks
+
+### The Problem on Vercel Hobby Tier
+* In `apps/customer-web/app/page.tsx` and `app/restaurants/[id]/page.tsx`, `primaryUrl` evaluated directly to `process.env.NEXT_PUBLIC_GATEWAY_URL` (`https://crave-azza.onrender.com/api/v1`) without appending `/restaurants`.
+* When the base URL returned 404, it fell back to `http://localhost:4002/restaurants`, which caused browsers to fail with `net::ERR_CONNECTION_REFUSED`.
+
+### Comparison: Old vs. New Implementation
+
+#### 🔴 OLD (`apps/customer-web/app/page.tsx`)
+```typescript
+const primaryUrl =
+  process.env.NEXT_PUBLIC_GATEWAY_URL ||
+  'http://localhost:3001/api/v1/restaurants';
+
+let res = await fetch(primaryUrl).catch(() => null);
+if (!res || !res.ok) {
+  // Direct microservice fallback (FAILS in browser on production)
+  res = await fetch('http://localhost:4002/restaurants').catch(() => null);
+}
+```
+
+#### 🟢 NEW (`apps/customer-web/app/page.tsx`)
+```typescript
+const rawGateway = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/+$/, '') || 'http://localhost:3001/api/v1';
+const primaryUrl = rawGateway.endsWith('/restaurants') ? rawGateway : `${rawGateway}/restaurants`;
+
+let res = await fetch(primaryUrl).catch(() => null);
+// Clean production request without localhost fallback
+```
+
+---
+
+## 10. Root Ingress Path Mapping (`/api/v1`)
+
+### The Problem on Render Free Tier
+* The API Gateway set global prefix `api/v1`, but had no controller route for the root path `''`.
+* Requests directly to `https://crave-azza.onrender.com/api/v1` returned `404 Not Found`.
+
+### Comparison: Old vs. New Implementation
+
+#### 🔴 OLD (`services/api-gateway/src/health/health.controller.ts`)
+```typescript
+@Controller('health') // Only matched /api/v1/health
+export class HealthController { ... }
+```
+
+#### 🟢 NEW (`services/api-gateway/src/health/health.controller.ts`)
+```typescript
+@Controller(['health', '']) // Matches both /api/v1 and /api/v1/health
+export class HealthController { ... }
+```
+
+---
+
+## 11. Verification & Test Proofs
 
 | Service / Endpoint | Test Type | Status | Latency / Result |
 | :--- | :--- | :--- | :--- |
 | `POST /api/v1/auth/restaurant/register` | In-Process RBAC Registration | **201 Created** | 24ms (PostgreSQL User + Restaurant + JWTs) |
 | `GET /api/v1/restaurants` | In-Process Catalog Query | **200 OK** | 12ms (All 12 seeded restaurants with menus) |
+| `POST /api/v1/users/:id/addresses` | In-Process Delivery Address Save | **201 Created** | 18ms (Saved in Supabase Address table) |
 | `POST /api/v1/orders/quote` | Order Pricing Engine | **200 OK** | 8ms (Subtotal + Delivery + Tax computation) |
-| `GET /api/v1/health` | Gateway Liveness Check | **200 OK** | 2ms |
+| `GET /api/v1` & `GET /api/v1/health` | Gateway Liveness Checks | **200 OK** | 2ms |
 | `Supabase IPv4 Pooler` | Prisma Client Connect | **Connected** | Tokyo AWS Pooler (`35.79.125.133:5432`) |
+
