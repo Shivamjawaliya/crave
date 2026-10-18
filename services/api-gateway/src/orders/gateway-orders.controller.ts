@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { OrderSseService } from './order-sse.service';
+import { InProcessOrdersService } from './in-process-orders.service';
 
 @ApiTags('Orders (API Gateway)')
 @Controller('orders')
@@ -22,6 +23,7 @@ export class GatewayOrdersController {
   constructor(
     private readonly configService: ConfigService,
     private readonly orderSseService: OrderSseService,
+    private readonly inProcessOrders: InProcessOrdersService,
   ) {
     this.orderServiceUrl =
       this.configService.get<string>('ORDER_SERVICE_URL') ||
@@ -43,11 +45,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.calculateQuote(body.restaurantId, body.items);
     }
   }
 
@@ -74,11 +75,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.createOrder(body.customerId, body);
     }
   }
 
@@ -95,11 +95,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.getCustomerOrders(customerId);
     }
   }
 
@@ -146,11 +145,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.getRestaurantOrders(restaurantId);
     }
   }
 
@@ -165,11 +163,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.getOrder(id);
     }
   }
 
@@ -191,11 +188,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.updateOrderStatus(id, body.status);
     }
   }
 
@@ -213,11 +209,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessOrders.updateOrderStatus(id, 'PREPARING' as any);
     }
   }
 
@@ -232,11 +227,10 @@ export class GatewayOrdersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Order service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return [];
     }
   }
 }

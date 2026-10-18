@@ -11,13 +11,17 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { InProcessCatalogService } from './in-process-catalog.service';
 
 @ApiTags('Restaurants (API Gateway)')
 @Controller('restaurants')
 export class GatewayRestaurantsController {
   private restaurantServiceUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly inProcessCatalog: InProcessCatalogService,
+  ) {
     this.restaurantServiceUrl =
       this.configService.get<string>('RESTAURANT_SERVICE_URL') ||
       'http://localhost:4002';
@@ -42,11 +46,10 @@ export class GatewayRestaurantsController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Restaurant service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.getRestaurants(search);
     }
   }
 
@@ -65,11 +68,10 @@ export class GatewayRestaurantsController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(
-        error.message || 'Restaurant service unavailable',
-        HttpStatus.SERVICE_UNAVAILABLE,
-      );
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.getRestaurant(id);
     }
   }
 
@@ -86,8 +88,10 @@ export class GatewayRestaurantsController {
       if (!response.ok) throw new HttpException(data.message || 'Failed to add category', response.status);
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.addCategory(restaurantId, body);
     }
   }
 
@@ -104,8 +108,10 @@ export class GatewayRestaurantsController {
       if (!response.ok) throw new HttpException(data.message || 'Failed to add item', response.status);
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.addItem(categoryId, body);
     }
   }
 
@@ -122,8 +128,10 @@ export class GatewayRestaurantsController {
       if (!response.ok) throw new HttpException(data.message || 'Failed to toggle availability', response.status);
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.toggleAvailability(itemId, body);
     }
   }
 
@@ -140,8 +148,10 @@ export class GatewayRestaurantsController {
       if (!response.ok) throw new HttpException(data.message || 'Failed to update item', response.status);
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException) throw error;
-      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
+        throw error;
+      }
+      return this.inProcessCatalog.updateItem(itemId, body);
     }
   }
 }
