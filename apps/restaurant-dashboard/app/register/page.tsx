@@ -52,7 +52,7 @@ export default function RestaurantRegisterPage() {
 
     try {
       const gatewayUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+        (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
       const res = await fetch(`${gatewayUrl}/auth/restaurant/register`, {
         method: 'POST',

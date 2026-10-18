@@ -88,10 +88,10 @@ export default function PastOrdersPage() {
       const uId = currentUserId || userId;
       if (!uId) return;
 
-      const primaryUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1/orders';
+      const rawGateway = (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
+      const ordersBase = rawGateway.endsWith('/orders') ? rawGateway : `${rawGateway}/orders`;
 
-      const res = await fetch(`${primaryUrl}/customer/${uId}`);
+      const res = await fetch(`${ordersBase}/customer/${uId}`);
       if (res.ok) {
         const data: Order[] = await res.json();
         setOrders(data);

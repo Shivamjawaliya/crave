@@ -51,7 +51,7 @@ interface AddressStore {
   deleteAddress: (userId: string, addressId: string) => Promise<void>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+const API_BASE = (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
 export const useAddressStore = create<AddressStore>((set, get) => ({
   addresses: [DEFAULT_FALLBACK_ADDRESS],

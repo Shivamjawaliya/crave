@@ -83,28 +83,41 @@ export default function HomePage() {
   const { selectedAddress, openModal, hydrateFromStorage } = useAddressStore();
 
   // Fetch real restaurants and menus from API Gateway / Restaurant Service
+  const fetchRealRestaurants = React.useCallback(async (retries = 3) => {
+    setLoading(true);
+    try {
+      const rawGateway = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/+$/, '') || 'http://localhost:3001/api/v1';
+      const cleanGateway = rawGateway.replace(/\/restaurants\/?$/, '');
+      const primaryUrl = `${cleanGateway}/restaurants`;
+
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+          const res = await fetch(primaryUrl);
+          if (res && res.ok) {
+            const data: RealRestaurant[] = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              setRestaurants(data);
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn(`[Restaurant Fetch] Attempt ${attempt} failed:`, e);
+        }
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 1200));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load restaurants:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     hydrateFromStorage();
-    async function fetchRealRestaurants() {
-      try {
-        const rawGateway = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/+$/, '') || 'http://localhost:3001/api/v1';
-        const primaryUrl = rawGateway.endsWith('/restaurants') ? rawGateway : `${rawGateway}/restaurants`;
-
-        let res = await fetch(primaryUrl).catch(() => null);
-
-        if (res && res.ok) {
-          const data: RealRestaurant[] = await res.json();
-          setRestaurants(data);
-        }
-      } catch (err) {
-        console.error('Failed to load restaurants:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchRealRestaurants();
-  }, []);
+  }, [fetchRealRestaurants, hydrateFromStorage]);
 
   const handleCopyPromo = () => {
     navigator.clipboard?.writeText('EPICUREAN');
@@ -834,7 +847,17 @@ export default function HomePage() {
             </span>
           </div>
 
-          {filteredRestaurants.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 py-4">
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-white rounded-3xl overflow-hidden border border-slate-200/80 p-4 animate-pulse space-y-3">
+                  <div className="aspect-[4/3] bg-slate-200 rounded-2xl w-full" />
+                  <div className="h-4 bg-slate-200 rounded w-3/4" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : filteredRestaurants.length === 0 ? (
             <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-sm space-y-3">
               <div className="w-12 h-12 rounded-full bg-[#ffdbd1] text-[#ab2f00] flex items-center justify-center mx-auto">
                 <Utensils className="w-6 h-6" />
@@ -842,7 +865,11 @@ export default function HomePage() {
               <h3 className="text-base font-bold text-slate-800">No restaurants match your filter</h3>
               <p className="text-xs text-slate-500">Try searching for other cuisines, dishes, or clearing filters.</p>
               <button
-                onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }}
+                onClick={() => {
+                  setSearchQuery('');
+                  setSelectedCategory('All');
+                  if (restaurants.length === 0) fetchRealRestaurants();
+                }}
                 className="px-4 py-2 bg-[#ab2f00] text-white rounded-xl text-xs font-bold hover:bg-[#8f2700] transition"
               >
                 Reset Filters

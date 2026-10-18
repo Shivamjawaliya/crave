@@ -74,7 +74,7 @@ export default function RestaurantDashboardView({
   const fetchOwnerRestaurants = async (ownerId: string) => {
     try {
       const gatewayUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+        (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
       const res = await fetch(`${gatewayUrl}/restaurants`);
       if (res.ok) {
@@ -104,7 +104,7 @@ export default function RestaurantDashboardView({
 
     try {
       const gatewayUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+        (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
       // A. Fetch Orders
       const ordersRes = await fetch(
@@ -214,7 +214,7 @@ export default function RestaurantDashboardView({
   const handleUpdateOrderStatus = async (orderId: string, nextStatus: string) => {
     try {
       const gatewayUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1';
+        (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
       const res = await fetch(`${gatewayUrl}/orders/${orderId}/status`, {
         method: 'PATCH',

@@ -59,13 +59,10 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Primary: API Gateway route /api/v1/auth/register (Port 3001)
-      // Fallback: Auth Service route /register (Port 4001)
-      const primaryUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL ||
-        'http://localhost:3001/api/v1/auth/register';
+      const rawGateway = (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
+      const primaryUrl = rawGateway.endsWith('/auth/register') ? rawGateway : `${rawGateway}/auth/register`;
 
-      let response = await fetch(primaryUrl, {
+      const response = await fetch(primaryUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -74,21 +71,7 @@ export default function RegisterPage() {
           password,
           role: 'CUSTOMER',
         }),
-      }).catch(() => null);
-
-      if (!response || !response.ok) {
-        // Fallback to Auth Microservice directly
-        response = await fetch('http://localhost:4001/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: name.trim(),
-            email: email.trim().toLowerCase(),
-            password,
-            role: 'CUSTOMER',
-          }),
-        });
-      }
+      });
 
       const data = await response.json();
 

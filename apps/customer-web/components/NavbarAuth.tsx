@@ -29,9 +29,8 @@ export default function NavbarAuth() {
 
   const handleSignOut = async () => {
     try {
-      const primaryUrl =
-        process.env.NEXT_PUBLIC_GATEWAY_URL ||
-        'http://localhost:3001/api/v1/auth/logout';
+      const rawGateway = (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
+      const primaryUrl = rawGateway.endsWith('/auth/logout') ? rawGateway : `${rawGateway}/auth/logout`;
       await fetch(primaryUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
