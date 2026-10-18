@@ -10,17 +10,13 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { InProcessAuthService } from './in-process-auth.service';
 
 @ApiTags('Auth (API Gateway)')
 @Controller('auth')
 export class GatewayAuthController {
   private authServiceUrl: string;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly inProcessAuth: InProcessAuthService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.authServiceUrl =
       this.configService.get<string>('AUTH_SERVICE_URL') ||
       'http://localhost:4001';
@@ -37,6 +33,7 @@ export class GatewayAuthController {
       role?: string;
     },
   ) {
+    // Allow CUSTOMER, DELIVERY_PARTNER, and RESTAURANT_OWNER registrations
     const allowedRoles = ['CUSTOMER', 'DELIVERY_PARTNER', 'RESTAURANT_OWNER'];
     const assignedRole = (body.role && allowedRoles.includes(body.role)) ? body.role : 'CUSTOMER';
     const safePayload = {
@@ -63,11 +60,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      // Microservice is not running; run in-process directly against database
-      return this.inProcessAuth.register(safePayload);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -96,10 +93,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.login(body);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -132,10 +130,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.registerRestaurantOwner(body);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -164,10 +163,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.login({ ...body, requiredRole: 'RESTAURANT_OWNER' });
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -190,10 +190,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.getMe(authHeader);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -227,10 +228,11 @@ export class GatewayAuthController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.getProfile(id);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 }

@@ -10,17 +10,13 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { InProcessDeliveryService } from './in-process-delivery.service';
 
 @ApiTags('Delivery (API Gateway)')
 @Controller('delivery')
 export class GatewayDeliveryController {
   private deliveryServiceUrl: string;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly inProcessDelivery: InProcessDeliveryService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.deliveryServiceUrl =
       this.configService.get<string>('DELIVERY_SERVICE_URL') ||
       'http://localhost:4005';
@@ -37,10 +33,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessDelivery.getAvailableJobs();
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -57,10 +54,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessDelivery.getActiveTrip(partnerUserId);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -79,10 +77,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessDelivery.acceptJob(id, body.partnerUserId);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -104,10 +103,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessDelivery.updateStatus(id, body.status);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -129,10 +129,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return { success: true };
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -149,16 +150,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return {
-        partnerUserId,
-        isAvailable: true,
-        vehicleType: 'Motorcycle',
-        totalTrips: 0,
-        rating: 5.0,
-      };
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -183,10 +179,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return { partnerUserId, isAvailable: body.isAvailable };
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -217,10 +214,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return { partnerUserId, ...body };
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -245,10 +243,11 @@ export class GatewayDeliveryController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return { success: true, message: 'Issue reported' };
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Delivery service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 }

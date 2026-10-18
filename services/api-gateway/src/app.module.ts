@@ -8,11 +8,6 @@ import { GatewayUsersController } from './users/gateway-users.controller';
 import { GatewayOrdersController } from './orders/gateway-orders.controller';
 import { GatewayDeliveryController } from './delivery/gateway-delivery.controller';
 import { OrderSseService } from './orders/order-sse.service';
-import { PrismaModule } from './prisma/prisma.service';
-import { InProcessAuthService } from './auth/in-process-auth.service';
-import { InProcessCatalogService } from './restaurants/in-process-catalog.service';
-import { InProcessOrdersService } from './orders/in-process-orders.service';
-import { InProcessDeliveryService } from './delivery/in-process-delivery.service';
 
 @Module({
   imports: [
@@ -20,7 +15,6 @@ import { InProcessDeliveryService } from './delivery/in-process-delivery.service
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
     }),
-    PrismaModule,
   ],
   controllers: [
     HealthController,
@@ -30,13 +24,6 @@ import { InProcessDeliveryService } from './delivery/in-process-delivery.service
     GatewayOrdersController,
     GatewayDeliveryController,
   ],
-  providers: [
-    GatewaySocketGateway,
-    OrderSseService,
-    InProcessAuthService,
-    InProcessCatalogService,
-    InProcessOrdersService,
-    InProcessDeliveryService,
-  ],
+  providers: [GatewaySocketGateway, OrderSseService],
 })
 export class AppModule {}

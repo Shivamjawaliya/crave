@@ -12,17 +12,13 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-import { InProcessAuthService } from '../auth/in-process-auth.service';
 
 @ApiTags('Users & Addresses (API Gateway)')
 @Controller('users')
 export class GatewayUsersController {
   private authServiceUrl: string;
 
-  constructor(
-    private readonly configService: ConfigService,
-    private readonly inProcessAuth: InProcessAuthService,
-  ) {
+  constructor(private readonly configService: ConfigService) {
     this.authServiceUrl =
       this.configService.get<string>('AUTH_SERVICE_URL') ||
       'http://localhost:4001';
@@ -39,10 +35,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.getProfile(id);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -64,10 +61,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.updateProfile(id, body);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -82,10 +80,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.getAddresses(id);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -117,10 +116,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.addAddress(id, body);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -144,10 +144,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.setDefaultAddress(id, addressId);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 
@@ -170,10 +171,11 @@ export class GatewayUsersController {
       }
       return data;
     } catch (error: any) {
-      if (error instanceof HttpException && error.getStatus() !== HttpStatus.SERVICE_UNAVAILABLE) {
-        throw error;
-      }
-      return this.inProcessAuth.deleteAddress(id, addressId);
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(
+        error.message || 'Auth service unavailable',
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
     }
   }
 }
