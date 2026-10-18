@@ -87,15 +87,10 @@ export default function HomePage() {
     hydrateFromStorage();
     async function fetchRealRestaurants() {
       try {
-        const primaryUrl =
-          process.env.NEXT_PUBLIC_GATEWAY_URL ||
-          'http://localhost:3001/api/v1/restaurants';
+        const rawGateway = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/+$/, '') || 'http://localhost:3001/api/v1';
+        const primaryUrl = rawGateway.endsWith('/restaurants') ? rawGateway : `${rawGateway}/restaurants`;
 
         let res = await fetch(primaryUrl).catch(() => null);
-        if (!res || !res.ok) {
-          // Direct microservice fallback
-          res = await fetch('http://localhost:4002/restaurants').catch(() => null);
-        }
 
         if (res && res.ok) {
           const data: RealRestaurant[] = await res.json();

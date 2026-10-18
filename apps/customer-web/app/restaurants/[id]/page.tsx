@@ -88,14 +88,10 @@ export default function RestaurantMenuPage() {
     async function fetchRestaurant() {
       if (!restaurantId) return;
       try {
-        const primaryUrl =
-          process.env.NEXT_PUBLIC_GATEWAY_URL ||
-          `http://localhost:3001/api/v1/restaurants/${restaurantId}`;
+        const rawGateway = process.env.NEXT_PUBLIC_GATEWAY_URL?.replace(/\/+$/, '') || 'http://localhost:3001/api/v1';
+        const primaryUrl = `${rawGateway}/restaurants/${restaurantId}`;
 
         let res = await fetch(primaryUrl).catch(() => null);
-        if (!res || !res.ok) {
-          res = await fetch(`http://localhost:4002/restaurants/${restaurantId}`).catch(() => null);
-        }
 
         if (res && res.ok) {
           const data = await res.json();
