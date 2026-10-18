@@ -210,8 +210,14 @@ export default function RestaurantDashboardView({
     };
   }, [activeRestaurant?.id, audioChimeEnabled, loadRestaurantData]);
 
-  // 4. Order Status Lifecycle Transition Action
+  // 4. Order Status Lifecycle Transition Action (Instant Zero-Lag Optimistic UI)
   const handleUpdateOrderStatus = async (orderId: string, nextStatus: string) => {
+    // 1. Immediately update local UI state (0ms latency, instant ticket column transition)
+    const previousOrders = [...orders];
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+    );
+
     try {
       const gatewayUrl =
         (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
@@ -222,16 +228,15 @@ export default function RestaurantDashboardView({
         body: JSON.stringify({ status: nextStatus, changedBy: 'RESTAURANT' }),
       });
 
-      if (res.ok) {
-        // Optimistically update local order status
-        setOrders((prev) =>
-          prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
-        );
-      } else {
+      if (!res.ok) {
+        // Rollback if the server rejected the transition
+        setOrders(previousOrders);
         await loadRestaurantData();
       }
     } catch (err) {
       console.error('Failed to update status:', err);
+      // Rollback on network failure
+      setOrders(previousOrders);
       await loadRestaurantData();
     }
   };
