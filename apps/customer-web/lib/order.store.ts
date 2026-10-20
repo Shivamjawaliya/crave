@@ -109,11 +109,20 @@ export const useOrderStore = create<OrderStore>((set) => ({
     try {
       const stored = localStorage.getItem('crave_active_order');
       if (stored) {
-        set({ activeOrder: JSON.parse(stored) });
+        const parsed = JSON.parse(stored);
+        // Clean up old demo mock order if present
+        if (parsed.id === 'order-umai-89241' || parsed.restaurantId === 'rest-umai') {
+          localStorage.removeItem('crave_active_order');
+          set({ activeOrder: null });
+        } else {
+          set({ activeOrder: parsed });
+        }
       } else {
         set({ activeOrder: null });
       }
-    } catch {}
+    } catch {
+      set({ activeOrder: null });
+    }
   },
 
   setActiveOrder: (order) => {

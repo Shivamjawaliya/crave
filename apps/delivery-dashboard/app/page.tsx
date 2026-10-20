@@ -351,7 +351,6 @@ export default function DeliveryPartnerApp() {
   // Update trip status (ARRIVED_AT_STORE -> PICKED_UP -> ARRIVED_AT_CUSTOMER -> DELIVERED)
   const handleUpdateStatus = async (newStatus: string, extraData?: any) => {
     if (!activeTrip) return;
-    setActiveTrip((prev) => (prev ? { ...prev, status: newStatus as any } : null));
 
     try {
       const updated = await updateDeliveryStatus(activeTrip.id, newStatus, extraData);
@@ -364,8 +363,10 @@ export default function DeliveryPartnerApp() {
           deliveredAt: updated.deliveredAt || prev.deliveredAt,
         };
       });
+      return updated;
     } catch (e) {
       console.error('Failed to update status on server:', e);
+      throw e;
     }
   };
 

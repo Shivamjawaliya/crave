@@ -44,7 +44,10 @@ export default function ActiveOrderFloatingBanner() {
     return null;
   }
 
-  const hasActiveOrder = !!activeOrder && !isBannerDismissed;
+  const hasActiveOrder =
+    !!activeOrder &&
+    activeOrder.status !== 'DELIVERED' &&
+    !isBannerDismissed;
   const hasCart = cartItems.length > 0 && !isCartDismissed;
 
   // Nothing to show if neither exists

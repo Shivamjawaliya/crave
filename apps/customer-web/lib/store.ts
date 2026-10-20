@@ -57,9 +57,9 @@ const saveToLocalStorage = (items: CartItem[], restId: string | null, restName: 
 };
 
 export const useCartStore = create<CartStore>((set, get) => ({
-  restaurantId: 'rest-umai',
-  restaurantName: 'Umai Handcrafted Ramen',
-  items: STITCH_DEFAULT_CART_ITEMS,
+  restaurantId: null,
+  restaurantName: null,
+  items: [],
 
   hydrateFromStorage: () => {
     if (typeof window === 'undefined') return;
@@ -70,14 +70,30 @@ export const useCartStore = create<CartStore>((set, get) => ({
       if (stored !== null) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
+          // Clean up old mock demo items if stored from previous tests
+          const isDemoCart =
+            restId === 'rest-umai' ||
+            parsed.some((i: any) => i.menuItemId === 'tonkotsu' || i.menuItemId === 'gyoza');
+          if (isDemoCart) {
+            localStorage.removeItem('crave_cart_items');
+            localStorage.removeItem('crave_cart_restaurant_id');
+            localStorage.removeItem('crave_cart_restaurant_name');
+            set({ items: [], restaurantId: null, restaurantName: null });
+            return;
+          }
+
           set({
             items: parsed,
-            restaurantId: restId ?? (parsed.length > 0 ? 'rest-umai' : null),
-            restaurantName: restName ?? (parsed.length > 0 ? 'Umai Handcrafted Ramen' : null),
+            restaurantId: parsed.length > 0 ? restId || null : null,
+            restaurantName: parsed.length > 0 ? restName || null : null,
           });
+          return;
         }
       }
-    } catch {}
+      set({ items: [], restaurantId: null, restaurantName: null });
+    } catch {
+      set({ items: [], restaurantId: null, restaurantName: null });
+    }
   },
 
   addItem: (restaurantId, restaurantName, item, quantity = 1) => {
