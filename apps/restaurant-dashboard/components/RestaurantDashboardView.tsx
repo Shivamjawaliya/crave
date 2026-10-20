@@ -7,7 +7,7 @@ import PartnerPortalLayout, { PortalTab } from './PartnerPortalLayout';
 import LiveOrdersKdsView, { OrderData } from './LiveOrdersKdsView';
 import MenuInventoryView, { MenuCategoryData } from './MenuInventoryView';
 import PerformanceView from './PerformanceView';
-import { getOwnerUser, getOwnerToken } from '../lib/auth';
+import { getOwnerUser, getOwnerToken, setOwnerSession } from '../lib/auth';
 import { playKitchenChime } from './AudioChime';
 import {
   Clock,
@@ -25,7 +25,20 @@ interface RestaurantOption {
   id: string;
   name: string;
   address: string;
+  isAcceptingOrders?: boolean;
 }
+
+const STATUS_RANK: Record<string, number> = {
+  PLACED: 1,
+  PENDING_PAYMENT: 1,
+  CONFIRMED: 2,
+  ACCEPTED: 2,
+  PREPARING: 3,
+  READY_FOR_PICKUP: 4,
+  OUT_FOR_DELIVERY: 5,
+  DELIVERED: 6,
+  CANCELLED: 99,
+};
 
 export default function RestaurantDashboardView({
   initialTab = 'live-orders',
@@ -34,6 +47,11 @@ export default function RestaurantDashboardView({
 }) {
   const router = useRouter();
 
+  // Track optimistic state transitions currently in-flight to prevent race condition rollbacks
+  const pendingTransitions = React.useRef<Map<string, { status: string; timestamp: number }>>(
+    new Map()
+  );
+
   // Auth & Session State
   const [owner, setOwner] = useState<any>(null);
   const [activeRestaurant, setActiveRestaurant] = useState<RestaurantOption | null>(null);
@@ -41,6 +59,24 @@ export default function RestaurantDashboardView({
   const [currentTab, setCurrentTab] = useState<PortalTab>(initialTab);
   const [audioChimeEnabled, setAudioChimeEnabled] = useState(true);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
+  const [isAcceptingOrders, setIsAcceptingOrders] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const user = getOwnerUser();
+      const restId = user?.restaurant?.id;
+      if (restId) {
+        const byId = localStorage.getItem(`restaurant_online_${restId}`);
+        if (byId !== null) return byId === 'true';
+      }
+      const globalCached = localStorage.getItem('kitchen_is_accepting_orders');
+      if (globalCached !== null) return globalCached === 'true';
+      if (typeof user?.restaurant?.isAcceptingOrders === 'boolean') {
+        return user.restaurant.isAcceptingOrders;
+      }
+    } catch {}
+    return true;
+  });
+  const [isTogglingOrders, setIsTogglingOrders] = useState(false);
 
   // Live Data State
   const [orders, setOrders] = useState<OrderData[]>([]);
@@ -62,8 +98,14 @@ export default function RestaurantDashboardView({
 
     // Initial restaurant selection
     if (user.restaurant) {
-      setActiveRestaurant(user.restaurant);
-      setAllOwnerRestaurants([user.restaurant]);
+      const restId = user.restaurant.id;
+      const cached = localStorage.getItem(`restaurant_online_${restId}`);
+      const initialStatus = cached !== null ? cached === 'true' : (user.restaurant.isAcceptingOrders ?? true);
+
+      const restWithStatus = { ...user.restaurant, isAcceptingOrders: initialStatus };
+      setActiveRestaurant(restWithStatus);
+      setAllOwnerRestaurants([restWithStatus]);
+      setIsAcceptingOrders(initialStatus);
     }
 
     // Fetch full restaurant list for this owner
@@ -81,15 +123,20 @@ export default function RestaurantDashboardView({
         const all: any[] = await res.json();
         const mine = all.filter((r) => r.ownerId === ownerId);
         if (mine.length > 0) {
-          setAllOwnerRestaurants(
-            mine.map((r) => ({ id: r.id, name: r.name, address: r.address }))
-          );
+          const mapped = mine.map((r) => {
+            const cached = localStorage.getItem(`restaurant_online_${r.id}`);
+            const status = cached !== null ? cached === 'true' : (r.isAcceptingOrders ?? true);
+            return {
+              id: r.id,
+              name: r.name,
+              address: r.address,
+              isAcceptingOrders: status,
+            };
+          });
+          setAllOwnerRestaurants(mapped);
           if (!activeRestaurant) {
-            setActiveRestaurant({
-              id: mine[0].id,
-              name: mine[0].name,
-              address: mine[0].address,
-            });
+            setActiveRestaurant(mapped[0]);
+            setIsAcceptingOrders(mapped[0].isAcceptingOrders ?? true);
           }
         }
       }
@@ -98,7 +145,7 @@ export default function RestaurantDashboardView({
     }
   };
 
-  // 3. Load Live Orders & Menu Data for Active Restaurant
+  // 3. Load Live Orders & Menu Data for Active Restaurant (Parallelized)
   const loadRestaurantData = useCallback(async () => {
     if (!activeRestaurant?.id) return;
 
@@ -106,23 +153,49 @@ export default function RestaurantDashboardView({
       const gatewayUrl =
         (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
-      // A. Fetch Orders
-      const ordersRes = await fetch(
-        `${gatewayUrl}/orders/restaurant/${activeRestaurant.id}`
-      );
+      // Fetch Orders and Restaurant details in parallel for maximum speed
+      const [ordersRes, restRes] = await Promise.all([
+        fetch(`${gatewayUrl}/orders/restaurant/${activeRestaurant.id}`),
+        fetch(`${gatewayUrl}/restaurants/${activeRestaurant.id}`),
+      ]);
+
       if (ordersRes.ok) {
         const ordersData: OrderData[] = await ordersRes.json();
-        setOrders(ordersData);
+        setOrders((prev) => {
+          const now = Date.now();
+          return ordersData.map((serverOrder) => {
+            const pending = pendingTransitions.current.get(serverOrder.id);
+            if (pending) {
+              const serverRank = STATUS_RANK[serverOrder.status] || 0;
+              const pendingRank = STATUS_RANK[pending.status] || 0;
+              // If within 20s and the server has not yet caught up to our optimistic click, preserve it!
+              if (now - pending.timestamp < 20000 && serverRank < pendingRank) {
+                return { ...serverOrder, status: pending.status };
+              } else {
+                pendingTransitions.current.delete(serverOrder.id);
+              }
+            }
+            return serverOrder;
+          });
+        });
       }
 
-      // B. Fetch Menu & Categories
-      const restRes = await fetch(
-        `${gatewayUrl}/restaurants/${activeRestaurant.id}`
-      );
       if (restRes.ok) {
         const restData = await restRes.json();
         if (restData.categories) {
           setCategories(restData.categories);
+        }
+        if (typeof restData.isAcceptingOrders === 'boolean') {
+          setIsAcceptingOrders(restData.isAcceptingOrders);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`restaurant_online_${activeRestaurant.id}`, String(restData.isAcceptingOrders));
+            localStorage.setItem('kitchen_is_accepting_orders', String(restData.isAcceptingOrders));
+            const user = getOwnerUser();
+            if (user?.restaurant && user.restaurant.id === activeRestaurant.id) {
+              user.restaurant.isAcceptingOrders = restData.isAcceptingOrders;
+              setOwnerSession(user, getOwnerToken() || '');
+            }
+          }
         }
       }
     } catch (err) {
@@ -171,7 +244,18 @@ export default function RestaurantDashboardView({
         }
         setOrders((prev) => {
           if (prev.some((o) => o.id === newOrder.id || o.orderNumber === newOrder.orderNumber)) {
-            return prev.map((o) => (o.id === newOrder.id ? { ...o, ...newOrder } : o));
+            return prev.map((o) => {
+              if (o.id === newOrder.id || o.orderNumber === newOrder.orderNumber) {
+                const currentRank = STATUS_RANK[o.status] || 0;
+                const newRank = STATUS_RANK[newOrder.status] || 0;
+                return {
+                  ...o,
+                  ...newOrder,
+                  status: currentRank > newRank ? o.status : newOrder.status,
+                };
+              }
+              return o;
+            });
           }
           return [newOrder, ...prev];
         });
@@ -182,27 +266,46 @@ export default function RestaurantDashboardView({
       console.log('⚡ Received order_status_updated via WebSocket:', updated);
       const targetId = updated.orderId || updated.id;
       const nextStatus = updated.newStatus || updated.status;
+      if (!targetId || !nextStatus) return;
+
+      const pending = pendingTransitions.current.get(targetId);
+      if (pending) {
+        const nextRank = STATUS_RANK[nextStatus] || 0;
+        const pendingRank = STATUS_RANK[pending.status] || 0;
+        if (nextRank >= pendingRank) {
+          pendingTransitions.current.delete(targetId);
+        }
+      }
+
       setOrders((prev) =>
         prev.map((o) => (o.id === targetId ? { ...o, status: nextStatus } : o))
       );
     });
 
     socket.on('order:status', (updatedOrder: any) => {
-      if (updatedOrder.restaurantId === activeRestaurant.id) {
-        setOrders((prev) =>
-          prev.map((o) =>
-            o.id === updatedOrder.id || o.id === updatedOrder.orderId
-              ? { ...o, status: updatedOrder.status }
-              : o
-          )
-        );
+      if (updatedOrder.restaurantId && updatedOrder.restaurantId !== activeRestaurant.id) return;
+      const targetId = updatedOrder.orderId || updatedOrder.id;
+      const nextStatus = updatedOrder.status || updatedOrder.newStatus;
+      if (!targetId || !nextStatus) return;
+
+      const pending = pendingTransitions.current.get(targetId);
+      if (pending) {
+        const nextRank = STATUS_RANK[nextStatus] || 0;
+        const pendingRank = STATUS_RANK[pending.status] || 0;
+        if (nextRank >= pendingRank) {
+          pendingTransitions.current.delete(targetId);
+        }
       }
+
+      setOrders((prev) =>
+        prev.map((o) => (o.id === targetId ? { ...o, status: nextStatus } : o))
+      );
     });
 
-    // Also poll every 4 seconds as a reliable background sync
+    // Background sync: 15s interval is optimal since WebSocket handles real-time updates
     const interval = setInterval(() => {
       loadRestaurantData();
-    }, 4000);
+    }, 15000);
 
     return () => {
       clearInterval(interval);
@@ -212,7 +315,10 @@ export default function RestaurantDashboardView({
 
   // 4. Order Status Lifecycle Transition Action (Instant Zero-Lag Optimistic UI)
   const handleUpdateOrderStatus = async (orderId: string, nextStatus: string) => {
-    // 1. Immediately update local UI state (0ms latency, instant ticket column transition)
+    // 1. Immediately record in pendingTransitions map
+    pendingTransitions.current.set(orderId, { status: nextStatus, timestamp: Date.now() });
+
+    // 2. Immediately update local UI state (0ms latency, instant ticket column transition)
     const previousOrders = [...orders];
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
@@ -230,14 +336,81 @@ export default function RestaurantDashboardView({
 
       if (!res.ok) {
         // Rollback if the server rejected the transition
+        pendingTransitions.current.delete(orderId);
         setOrders(previousOrders);
         await loadRestaurantData();
       }
     } catch (err) {
       console.error('Failed to update status:', err);
       // Rollback on network failure
+      pendingTransitions.current.delete(orderId);
       setOrders(previousOrders);
       await loadRestaurantData();
+    }
+  };
+
+  // Kitchen Online / Paused Toggle
+  const handleToggleAcceptingOrders = async () => {
+    if (!activeRestaurant?.id || isTogglingOrders) return;
+    const nextVal = !isAcceptingOrders;
+
+    // 1. Optimistic immediate update for instant UI feedback & sync to localStorage
+    setIsAcceptingOrders(nextVal);
+    setIsTogglingOrders(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`restaurant_online_${activeRestaurant.id}`, String(nextVal));
+      localStorage.setItem('kitchen_is_accepting_orders', String(nextVal));
+      const user = getOwnerUser();
+      if (user?.restaurant && user.restaurant.id === activeRestaurant.id) {
+        user.restaurant.isAcceptingOrders = nextVal;
+        setOwnerSession(user, getOwnerToken() || '');
+      }
+    }
+
+    try {
+      const gatewayUrl =
+        (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
+
+      const res = await fetch(`${gatewayUrl}/restaurants/${activeRestaurant.id}/orders-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isAcceptingOrders: nextVal }),
+      });
+
+      if (!res.ok) {
+        console.error('Failed to update kitchen online status, rolling back...');
+        setIsAcceptingOrders(!nextVal);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`restaurant_online_${activeRestaurant.id}`, String(!nextVal));
+          localStorage.setItem('kitchen_is_accepting_orders', String(!nextVal));
+          const user = getOwnerUser();
+          if (user?.restaurant && user.restaurant.id === activeRestaurant.id) {
+            user.restaurant.isAcceptingOrders = !nextVal;
+            setOwnerSession(user, getOwnerToken() || '');
+          }
+        }
+      } else {
+        const updated = await res.json();
+        const finalStatus = updated.isAcceptingOrders ?? nextVal;
+        setIsAcceptingOrders(finalStatus);
+        setActiveRestaurant((prev) => (prev ? { ...prev, isAcceptingOrders: finalStatus } : null));
+        setAllOwnerRestaurants((prev) =>
+          prev.map((r) => (r.id === activeRestaurant.id ? { ...r, isAcceptingOrders: finalStatus } : r))
+        );
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(`restaurant_online_${activeRestaurant.id}`, String(finalStatus));
+          localStorage.setItem('kitchen_is_accepting_orders', String(finalStatus));
+        }
+      }
+    } catch (err) {
+      console.error('Error toggling kitchen status:', err);
+      setIsAcceptingOrders(!nextVal);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(`restaurant_online_${activeRestaurant.id}`, String(!nextVal));
+        localStorage.setItem('kitchen_is_accepting_orders', String(!nextVal));
+      }
+    } finally {
+      setIsTogglingOrders(false);
     }
   };
 
@@ -283,11 +456,17 @@ export default function RestaurantDashboardView({
       allOwnerRestaurants={allOwnerRestaurants}
       onSelectRestaurant={(r) => {
         setActiveRestaurant(r);
+        const cached = typeof window !== 'undefined' ? localStorage.getItem(`restaurant_online_${r.id}`) : null;
+        const status = cached !== null ? cached === 'true' : (r.isAcceptingOrders ?? true);
+        setIsAcceptingOrders(status);
         setRefreshTrigger((prev) => prev + 1);
       }}
       audioChimeEnabled={audioChimeEnabled}
       onToggleAudioChime={() => setAudioChimeEnabled(!audioChimeEnabled)}
       isSocketConnected={isSocketConnected}
+      isAcceptingOrders={isAcceptingOrders}
+      onToggleAcceptingOrders={handleToggleAcceptingOrders}
+      isTogglingOrders={isTogglingOrders}
     >
       {/* VIEW 1: LIVE ORDERS (KDS) */}
       {currentTab === 'live-orders' && (
@@ -423,6 +602,47 @@ export default function RestaurantDashboardView({
                 value={activeRestaurant?.address || ''}
                 className="w-full px-3.5 py-2 text-xs rounded-xl border border-surface-container-highest bg-surface-container-low text-on-surface font-semibold"
               />
+            </div>
+
+            <div className="pt-3 border-t border-surface-container space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-on-surface font-mono">
+                Storefront Online & Ordering Status
+              </h4>
+              <div className={`p-4 rounded-xl border transition flex items-center justify-between ${
+                isAcceptingOrders
+                  ? 'bg-primary-container/20 border-primary/30'
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full ${
+                        isAcceptingOrders ? 'bg-primary animate-pulse' : 'bg-red-500'
+                      }`}
+                    />
+                    <span className="text-xs font-bold text-on-surface">
+                      {isAcceptingOrders ? 'Accepting Orders (Online)' : 'Orders Paused (Offline)'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-on-surface-variant mt-0.5 block">
+                    {isAcceptingOrders
+                      ? 'Kitchen is open and visible to customers on the app.'
+                      : 'Kitchen is hidden from customer exploration and orders are paused.'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleToggleAcceptingOrders}
+                  disabled={isTogglingOrders}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold font-mono transition shadow-sm ${
+                    isAcceptingOrders
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-primary hover:bg-primary/90 text-white'
+                  }`}
+                >
+                  {isAcceptingOrders ? 'Pause Incoming Orders' : 'Resume Accepting Orders'}
+                </button>
+              </div>
             </div>
 
             <div className="pt-3 border-t border-surface-container space-y-3">

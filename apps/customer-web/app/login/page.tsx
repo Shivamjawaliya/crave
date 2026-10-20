@@ -30,7 +30,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('Password@123');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberDevice, setRememberDevice] = useState(true);
-  const [deliveryMode, setDeliveryMode] = useState<'delivery' | 'pickup'>('delivery');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -112,31 +111,6 @@ export default function LoginPage() {
               </div>
               <ChevronDown className="text-[#5b4139] w-4 h-4" />
             </div>
-
-            <div className="hidden lg:flex items-center bg-[#e9eef8] p-1 rounded-full border border-[#e4beb4]/20">
-              <button
-                type="button"
-                onClick={() => setDeliveryMode('delivery')}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all shadow-sm ${
-                  deliveryMode === 'delivery'
-                    ? 'bg-white text-[#ab2f00]'
-                    : 'text-[#5b4139] hover:text-[#161c23]'
-                }`}
-              >
-                Delivery
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeliveryMode('pickup')}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                  deliveryMode === 'pickup'
-                    ? 'bg-white text-[#ab2f00] shadow-sm'
-                    : 'text-[#5b4139] hover:text-[#161c23]'
-                }`}
-              >
-                Pickup
-              </button>
-            </div>
           </div>
 
           {/* Search Box with ⌘K */}
@@ -156,20 +130,6 @@ export default function LoginPage() {
 
           {/* Right Header Navigation & Cart */}
           <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-            <nav className="hidden lg:flex items-center gap-1">
-              <Link
-                href="/offers"
-                className="px-3 py-2 rounded-lg text-sm font-semibold text-[#5b4139] hover:text-[#161c23] transition-colors"
-              >
-                Offers
-              </Link>
-              <Link
-                href="/orders"
-                className="px-3 py-2 rounded-lg text-sm font-semibold text-[#5b4139] hover:text-[#161c23] transition-colors"
-              >
-                Past Orders
-              </Link>
-            </nav>
 
             <Link
               href="/cart"

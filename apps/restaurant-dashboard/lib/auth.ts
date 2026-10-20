@@ -8,6 +8,7 @@ export interface RestaurantOwnerUser {
     name: string;
     address: string;
     description?: string;
+    isAcceptingOrders?: boolean;
   } | null;
 }
 

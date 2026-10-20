@@ -9,8 +9,13 @@ export class RestaurantsController {
 
   @Get()
   @ApiOperation({ summary: 'Search all approved restaurants' })
-  findAll(@Query('search') search?: string) {
-    return this.restaurantsService.findAll(search);
+  findAll(
+    @Query('search') search?: string,
+    @Query('openOnly') openOnly?: string,
+    @Query('isAcceptingOrders') isAcceptingOrders?: string,
+  ) {
+    const onlyOpen = openOnly === 'true' || isAcceptingOrders === 'true';
+    return this.restaurantsService.findAll(search, onlyOpen ? true : undefined);
   }
 
   @Get(':id')
@@ -47,5 +52,23 @@ export class RestaurantsController {
   @ApiOperation({ summary: 'Update item details' })
   updateItem(@Param('id') itemId: string, @Body() body: any) {
     return this.restaurantsService.updateItem(itemId, body);
+  }
+
+  @Patch(':id/orders-status')
+  @ApiOperation({ summary: 'Toggle restaurant accepting orders' })
+  updateOrdersStatus(
+    @Param('id') id: string,
+    @Body() body: { isAcceptingOrders: boolean },
+  ) {
+    return this.restaurantsService.updateAcceptingOrders(id, body.isAcceptingOrders);
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update restaurant status or accepting orders' })
+  updateStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: any; isAcceptingOrders?: boolean },
+  ) {
+    return this.restaurantsService.updateStatus(id, body);
   }
 }

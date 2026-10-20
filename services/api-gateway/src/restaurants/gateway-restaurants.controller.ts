@@ -25,11 +25,18 @@ export class GatewayRestaurantsController {
 
   @Get()
   @ApiOperation({ summary: 'List all approved restaurants with menus and items' })
-  async getRestaurants(@Query('search') search?: string) {
+  async getRestaurants(
+    @Query('search') search?: string,
+    @Query('openOnly') openOnly?: string,
+    @Query('isAcceptingOrders') isAcceptingOrders?: string,
+  ) {
     try {
-      const url = search
-        ? `${this.restaurantServiceUrl}/restaurants?search=${encodeURIComponent(search)}`
-        : `${this.restaurantServiceUrl}/restaurants`;
+      const params = new URLSearchParams();
+      if (search) params.append('search', search);
+      if (openOnly) params.append('openOnly', openOnly);
+      if (isAcceptingOrders) params.append('isAcceptingOrders', isAcceptingOrders);
+      const queryStr = params.toString() ? `?${params.toString()}` : '';
+      const url = `${this.restaurantServiceUrl}/restaurants${queryStr}`;
 
       const response = await fetch(url);
       const data = await response.json();
@@ -138,6 +145,48 @@ export class GatewayRestaurantsController {
       });
       const data = await response.json();
       if (!response.ok) throw new HttpException(data.message || 'Failed to update item', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Patch(':id/orders-status')
+  @ApiOperation({ summary: 'Toggle restaurant accepting orders' })
+  async toggleOrdersStatus(
+    @Param('id') id: string,
+    @Body() body: { isAcceptingOrders: boolean },
+  ) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/${id}/orders-status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to toggle accepting orders', response.status);
+      return data;
+    } catch (error: any) {
+      if (error instanceof HttpException) throw error;
+      throw new HttpException(error.message || 'Restaurant service unavailable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
+  @Patch(':id/status')
+  @ApiOperation({ summary: 'Update restaurant status' })
+  async updateRestaurantStatus(
+    @Param('id') id: string,
+    @Body() body: { status?: any; isAcceptingOrders?: boolean },
+  ) {
+    try {
+      const response = await fetch(`${this.restaurantServiceUrl}/restaurants/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new HttpException(data.message || 'Failed to update status', response.status);
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;

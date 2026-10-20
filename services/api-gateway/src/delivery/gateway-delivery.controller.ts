@@ -5,21 +5,83 @@ import {
   Patch,
   Body,
   Param,
+  Query,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 @ApiTags('Delivery (API Gateway)')
 @Controller('delivery')
 export class GatewayDeliveryController {
   private deliveryServiceUrl: string;
 
-  constructor(private readonly configService: ConfigService) {
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly telemetryService: TelemetryService,
+  ) {
     this.deliveryServiceUrl =
       this.configService.get<string>('DELIVERY_SERVICE_URL') ||
       'http://localhost:4005';
+  }
+
+  @Get('orders/:orderId/telemetry')
+  @ApiOperation({ summary: 'Get cached live driver telemetry from Redis (last 2 points + bearing)' })
+  async getOrderTelemetry(@Param('orderId') orderId: string) {
+    const telemetry = await this.telemetryService.getTelemetry(orderId);
+    if (!telemetry) {
+      return { status: 'idle', message: 'No live telemetry yet' };
+    }
+    return telemetry;
+  }
+
+  @Get('drivers/nearest')
+  @ApiOperation({ summary: 'Find nearest delivery partners from Redis by location coordinates' })
+  async findNearestDrivers(
+    @Query('latitude') latitude?: string,
+    @Query('longitude') longitude?: string,
+    @Query('radius') radius?: string,
+  ) {
+    const lat = latitude ? parseFloat(latitude) : 23.2324;
+    const lng = longitude ? parseFloat(longitude) : 77.4300;
+    const rad = radius ? parseFloat(radius) : 15;
+
+    const nearest = await this.telemetryService.findNearestDriver(lat, lng, rad);
+    const allNearby = await this.telemetryService.findAllNearbyDrivers(lat, lng, rad);
+
+    return {
+      success: true,
+      pickupLocation: { latitude: lat, longitude: lng },
+      searchRadiusKm: rad,
+      nearestPartner: nearest,
+      allNearbyPartners: allNearby,
+      count: allNearby.length,
+    };
+  }
+
+  @Post('dispatch/nearest')
+  @ApiOperation({ summary: 'Calculate nearest delivery partner from Redis and dispatch job' })
+  async dispatchNearest(
+    @Body()
+    body: {
+      orderId: string;
+      pickupLatitude?: number;
+      pickupLongitude?: number;
+    },
+  ) {
+    const lat = body.pickupLatitude ?? 23.2324;
+    const lng = body.pickupLongitude ?? 77.4300;
+
+    const nearest = await this.telemetryService.findNearestDriver(lat, lng);
+
+    return {
+      success: true,
+      orderId: body.orderId,
+      dispatchedToNearest: !!nearest,
+      nearestPartner: nearest,
+    };
   }
 
   @Get('jobs')
@@ -101,6 +163,15 @@ export class GatewayDeliveryController {
       if (!response.ok) {
         throw new HttpException(data.message || 'Status update failed', response.status);
       }
+
+      // Purge delivered telemetry from Redis and sever tracking session
+      if (body.status === 'DELIVERED') {
+        const orderId = data.orderId || data.order?.id;
+        if (orderId) {
+          await this.telemetryService.cleanupOrderTelemetry(orderId, id);
+        }
+      }
+
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;

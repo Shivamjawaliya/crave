@@ -4,6 +4,10 @@ export interface UserAddress {
   id?: string;
   userId?: string;
   label: string;
+  houseNumber?: string | null;
+  landmark?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
   addressLine: string;
   city?: string | null;
   state?: string | null;
@@ -40,10 +44,16 @@ interface AddressStore {
     userId: string,
     data: {
       label?: string;
+      houseNumber?: string;
+      landmark?: string;
+      contactName?: string;
+      contactPhone?: string;
       addressLine: string;
       city?: string;
       state?: string;
       pincode?: string;
+      latitude?: number;
+      longitude?: number;
       isDefault?: boolean;
     },
   ) => Promise<UserAddress>;

@@ -95,6 +95,7 @@ export interface RestaurantSummary {
   latitude?: number | null;
   longitude?: number | null;
   status: RestaurantStatus;
+  isAcceptingOrders?: boolean;
   createdAt: string;
 }
 

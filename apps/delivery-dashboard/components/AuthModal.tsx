@@ -16,7 +16,7 @@ export default function AuthModal({ isOpen, onSuccess }: AuthModalProps) {
 
   // Form states
   const [email, setEmail] = useState('delivery@speedy.com');
-  const [password, setPassword] = useState('password123');
+  const [password, setPassword] = useState('Password@123');
   const [name, setName] = useState('');
   const [vehicleType, setVehicleType] = useState('Motorcycle');
   const [vehicleNumber, setVehicleNumber] = useState('KA-01-EA-4821');
@@ -29,7 +29,7 @@ export default function AuthModal({ isOpen, onSuccess }: AuthModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await loginDriver('delivery@speedy.com', 'password123');
+      const res = await loginDriver('delivery@speedy.com', 'Password@123');
       localStorage.setItem('delivery_token', res.accessToken);
       localStorage.setItem('delivery_user', JSON.stringify(res.user));
       onSuccess(res.user, res.accessToken);

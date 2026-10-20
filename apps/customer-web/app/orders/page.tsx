@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { io, Socket } from 'socket.io-client';
 import {
   Flame,
@@ -19,11 +20,28 @@ import {
   ShieldCheck,
   Receipt,
   ArrowRight,
+  Navigation,
 } from 'lucide-react';
 import NavbarAuth from '../../components/NavbarAuth';
 import AddressModal from '../../components/AddressModal';
 import { useCartStore } from '../../lib/store';
 import { useAddressStore } from '../../lib/address.store';
+
+// Client-only dynamic Leaflet Map
+const LiveOrderTrackingMap = dynamic(
+  () => import('../../components/LiveOrderTrackingMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-[280px] sm:h-[380px] rounded-2xl bg-slate-100 flex items-center justify-center border border-slate-200 animate-pulse">
+        <div className="flex items-center gap-2 text-slate-500 text-xs font-bold">
+          <div className="w-4 h-4 border-2 border-[#ab2f00] border-t-transparent rounded-full animate-spin"></div>
+          <span>Connecting Live GPS Satellite Feed...</span>
+        </div>
+      </div>
+    ),
+  }
+);
 
 interface OrderItem {
   id: string;
@@ -39,6 +57,8 @@ interface OrderRestaurant {
   name: string;
   address: string;
   description: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface OrderAddressSnapshot {
@@ -53,6 +73,8 @@ interface OrderAddressSnapshot {
   customerPhone?: string;
   verificationCode?: string;
   callboxCode?: string;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface Order {
@@ -76,6 +98,22 @@ export default function PastOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [visibleMapOrderIds, setVisibleMapOrderIds] = useState<Record<string, boolean>>({});
+
+  const isMapOpen = (order: Order) => {
+    const isActive = order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'REJECTED';
+    if (visibleMapOrderIds[order.id] !== undefined) {
+      return visibleMapOrderIds[order.id];
+    }
+    return isActive; // Active orders have map visible by default
+  };
+
+  const toggleMap = (orderId: string, currentOpen: boolean) => {
+    setVisibleMapOrderIds((prev) => ({
+      ...prev,
+      [orderId]: !currentOpen,
+    }));
+  };
 
   const { items: cartItems, addItem, getSubtotalPaise } = useCartStore();
   const cartSubtotal = (getSubtotalPaise() / 100).toFixed(2);
@@ -504,6 +542,12 @@ export default function PastOrdersPage() {
                             <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
                             <span>{badge.label}</span>
                           </span>
+                          {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-emerald-100 text-[#006c49] border border-emerald-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#006c49] animate-ping" />
+                              <span>Live GPS Route</span>
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                           <span className="font-mono font-bold text-slate-700">#{order.orderNumber}</span>
@@ -519,7 +563,30 @@ export default function PastOrdersPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && order.status !== 'REJECTED' && (
+                        <Link
+                          href="/orders/track"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-[#006c49] hover:bg-[#005236] text-white text-xs font-bold shadow-sm transition"
+                        >
+                          <Navigation className="w-3.5 h-3.5 text-white" />
+                          <span>Track Live</span>
+                        </Link>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleMap(order.id, isMapOpen(order))}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-bold border transition cursor-pointer ${
+                          isMapOpen(order)
+                            ? 'bg-[#ab2f00]/10 text-[#ab2f00] border-[#ab2f00]/30 hover:bg-[#ab2f00]/20'
+                            : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200 shadow-sm'
+                        }`}
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-[#ab2f00]" />
+                        <span>{isMapOpen(order) ? 'Hide Map' : 'View Map'}</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => handleOrderAgain(order)}
@@ -530,6 +597,40 @@ export default function PastOrdersPage() {
                       </button>
                     </div>
                   </div>
+
+                  {/* 🗺️ Real-time GPS Live Order Tracking Map Section */}
+                  {isMapOpen(order) && (
+                    <div className="p-6 sm:p-8 pb-3 border-b border-slate-100 bg-slate-50/40 animate-in fade-in duration-300">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
+                            Live GPS Telemetry &amp; Road Navigation
+                          </h4>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+                          Route: {order.restaurant?.name || 'Kitchen'} → {order.addressSnapshot?.label || 'Your Location'}
+                        </span>
+                      </div>
+
+                      <LiveOrderTrackingMap
+                        orderId={order.id}
+                        orderNumber={order.orderNumber}
+                        orderStatus={order.status}
+                        restaurant={{
+                          name: order.restaurant?.name || 'Restaurant Kitchen',
+                          address: order.restaurant?.address,
+                          latitude: order.restaurant?.latitude,
+                          longitude: order.restaurant?.longitude,
+                        }}
+                        customerAddress={{
+                          addressLine: order.addressSnapshot?.addressLine || 'Delivery Address',
+                          latitude: order.addressSnapshot?.latitude,
+                          longitude: order.addressSnapshot?.longitude,
+                        }}
+                      />
+                    </div>
+                  )}
 
                   {/* Order Card Body */}
                   <div className="p-6 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">

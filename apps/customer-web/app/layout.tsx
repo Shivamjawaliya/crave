@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import ActiveOrderFloatingBanner from '../components/ActiveOrderFloatingBanner';
 
 export const metadata: Metadata = {
   title: 'Crave — Order Delicious Food Online',
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen flex flex-col">{children}</body>
+      <body className="min-h-screen flex flex-col">
+        {children}
+        <ActiveOrderFloatingBanner />
+      </body>
     </html>
   );
 }

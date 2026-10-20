@@ -202,13 +202,17 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
     const order = await this.prisma.order.findUnique({ where: { id: orderId } });
     if (!order) throw new NotFoundException('Order not found');
 
+    if (order.status === nextStatus) {
+      return order;
+    }
+
     if (!isValidOrderTransition(order.status as OrderStatus, nextStatus)) {
       throw new BadRequestException(`Invalid transition: ${order.status} -> ${nextStatus}`);
     }
 
-    const updated = await this.prisma.$transaction(async (tx) => {
-      // 1. Update orders table (fast querying current state)
-      const ord = await tx.order.update({
+    // Fast atomic batch transaction (1 single roundtrip to remote PostgreSQL database)
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.order.update({
         where: { id: orderId },
         data: { status: nextStatus },
         include: {
@@ -217,22 +221,18 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           customer: { select: { id: true, name: true, email: true } },
           restaurant: true,
         },
-      });
-
-      // 2. Append-only timeline log in order_status_logs table
-      await tx.orderStatusLog.create({
+      }),
+      this.prisma.orderStatusLog.create({
         data: {
-          orderId: ord.id,
+          orderId: orderId,
           status: nextStatus,
           changedBy: changedBy || 'RESTAURANT',
         },
-      });
+      }),
+    ]);
 
-      return ord;
-    });
-
-    // 🐰 Broadcast status transition to RabbitMQ
-    await this.publishOrderEvent(`order.${nextStatus.toLowerCase()}`, {
+    // 🐰 Broadcast status transition to RabbitMQ (non-blocking)
+    this.publishOrderEvent(`order.${nextStatus.toLowerCase()}`, {
       id: updated.id,
       orderId: updated.id,
       orderNumber: updated.orderNumber,
@@ -250,7 +250,9 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       addressSnapshot: updated.addressSnapshot,
       items: updated.items,
       createdAt: updated.createdAt,
-    });
+    }).catch((err) =>
+      this.logger.error(`Failed to publish event to RabbitMQ: ${err.message}`),
+    );
 
     return updated;
   }

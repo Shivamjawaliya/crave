@@ -8,6 +8,7 @@ import { GatewayUsersController } from './users/gateway-users.controller';
 import { GatewayOrdersController } from './orders/gateway-orders.controller';
 import { GatewayDeliveryController } from './delivery/gateway-delivery.controller';
 import { OrderSseService } from './orders/order-sse.service';
+import { TelemetryService } from './telemetry/telemetry.service';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { OrderSseService } from './orders/order-sse.service';
     GatewayOrdersController,
     GatewayDeliveryController,
   ],
-  providers: [GatewaySocketGateway, OrderSseService],
+  providers: [GatewaySocketGateway, OrderSseService, TelemetryService],
+  exports: [TelemetryService],
 })
 export class AppModule {}

@@ -159,6 +159,7 @@ export class AuthService {
           name: restaurant.name,
           address: restaurant.address,
           description: restaurant.description,
+          isAcceptingOrders: restaurant.isAcceptingOrders,
         },
       },
       ...tokens,
@@ -327,6 +328,10 @@ export class AuthService {
     userId: string,
     data: {
       label?: string;
+      houseNumber?: string;
+      landmark?: string;
+      contactName?: string;
+      contactPhone?: string;
       addressLine: string;
       city?: string;
       state?: string;
@@ -353,10 +358,14 @@ export class AuthService {
       data: {
         userId,
         label: data.label?.trim() || 'Home',
+        houseNumber: data.houseNumber?.trim() || null,
+        landmark: data.landmark?.trim() || null,
+        contactName: data.contactName?.trim() || null,
+        contactPhone: data.contactPhone?.trim() || null,
         addressLine: data.addressLine.trim(),
-        city: data.city?.trim() || 'Springfield',
-        state: data.state?.trim() || 'OR',
-        pincode: data.pincode?.trim() || '97477',
+        city: data.city?.trim() || 'Bhopal',
+        state: data.state?.trim() || 'MP',
+        pincode: data.pincode?.trim() || '462001',
         latitude: data.latitude,
         longitude: data.longitude,
         isDefault: shouldBeDefault,

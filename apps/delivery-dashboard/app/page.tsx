@@ -53,8 +53,17 @@ export default function DeliveryPartnerApp() {
   const [sosMode, setSosMode] = useState<'sos' | 'report'>('sos');
   const [showProfile, setShowProfile] = useState(false);
 
-  // Socket reference
+  // Socket reference & Route simulation progress
   const socketRef = useRef<Socket | null>(null);
+  const simProgressRef = useRef<number>(0);
+  const liveGpsRef = useRef<{
+    latitude: number;
+    longitude: number;
+    speed?: number;
+    heading?: number;
+    accuracy?: number;
+    timestamp: number;
+  } | null>(null);
 
   // 1. Initial Load: Auth check from localStorage
   useEffect(() => {
@@ -93,7 +102,12 @@ export default function DeliveryPartnerApp() {
       setStats(data.stats);
       setIsOnline(data.profile.isAvailable);
     } catch (e) {
-      console.warn('Failed to fetch profile:', e);
+      console.warn('Failed to fetch profile (stale session):', e);
+      localStorage.removeItem('delivery_user');
+      localStorage.removeItem('delivery_token');
+      setUser(null);
+      setProfile(null);
+      setShowAuthModal(true);
     }
   };
 
@@ -111,8 +125,12 @@ export default function DeliveryPartnerApp() {
       socket.emit('driver:subscribe', { partnerUserId: user.id });
     });
 
-    // Listen for incoming dispatched orders
-    socket.on('delivery:broadcast_job', () => {
+    // Listen for incoming dispatched orders (including targeted nearest match)
+    socket.on('delivery:broadcast_job', (jobData: any) => {
+      console.log('📦 [DRIVER APP] Incoming dispatch job broadcast received:', jobData);
+      if (jobData?.nearest && jobData?.distanceKm !== undefined) {
+        console.log(`🎯 [NEAREST MATCH] You are matched as the closest partner (${jobData.distanceKm} km from restaurant)!`);
+      }
       checkForDispatchJobs();
     });
 
@@ -156,29 +174,124 @@ export default function DeliveryPartnerApp() {
     return () => clearInterval(interval);
   }, [user, isOnline, activeTrip]);
 
-  // 4. Continuous GPS Location Streaming (Module 2)
+  // Hardware Geolocation Watcher (Captures real-time live GPS from mobile device or browser)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !navigator.geolocation || !isOnline) return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        const { latitude, longitude, speed, heading, accuracy } = position.coords;
+        console.log('📍 [DRIVER HARDWARE GPS CAPTURED]:', {
+          latitude,
+          longitude,
+          speed: speed !== null ? `${Math.round(speed * 3.6)} km/h` : 'N/A',
+          heading: heading !== null ? `${Math.round(heading)}°` : 'N/A',
+          accuracy: `±${Math.round(accuracy)}m`,
+          timestamp: new Date(position.timestamp).toLocaleTimeString(),
+        });
+
+        liveGpsRef.current = {
+          latitude,
+          longitude,
+          speed: speed !== null && !isNaN(speed) ? Math.round(speed * 3.6) : 28,
+          heading: heading !== null && !isNaN(heading) ? Math.round(heading) : undefined,
+          accuracy,
+          timestamp: position.timestamp,
+        };
+
+        setGpsAccuracy(`GPS Live • ±${Math.round(accuracy || 3)}m`);
+      },
+      (error) => {
+        console.info('Hardware GPS unavailable or permission pending; using route simulation fallback:', error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 3000,
+        timeout: 10000,
+      }
+    );
+
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+    };
+  }, [isOnline]);
+
+  // 4. Continuous Fast GPS Location Streaming (Module 2 — 3s Interval)
   useEffect(() => {
     if (!user || !isOnline) return;
 
-    // Stream coordinates every 8 seconds
+    // Stream coordinates every 3 seconds for high-fidelity live tracking (Zomato-style)
     const interval = setInterval(() => {
-      // Standard Bangalore / Bhopal coordinate jitter simulation for realistic map telemetry
-      const baseLat = 23.2599; // Bhopal
-      const baseLng = 77.4126;
-      const jitterLat = (Math.random() - 0.5) * 0.002;
-      const jitterLng = (Math.random() - 0.5) * 0.002;
+      let lat: number;
+      let lng: number;
+      let speed = 28;
+      let heading: number | undefined = undefined;
+      let source = 'SIMULATED_ROUTE';
+
+      // Check if real hardware GPS was captured within the last 15 seconds
+      const isLiveGpsFresh =
+        liveGpsRef.current &&
+        Date.now() - liveGpsRef.current.timestamp < 15000;
+
+      if (isLiveGpsFresh && liveGpsRef.current) {
+        lat = liveGpsRef.current.latitude;
+        lng = liveGpsRef.current.longitude;
+        speed = liveGpsRef.current.speed || 28;
+        heading = liveGpsRef.current.heading;
+        source = 'LIVE_DEVICE_HARDWARE';
+      } else {
+        // Fallback: Simulate vector from restaurant to customer for smooth testing
+        const restLat = Number(activeTrip?.order?.restaurant?.latitude) || 23.2324;
+        const restLng = Number(activeTrip?.order?.restaurant?.longitude) || 77.4300;
+        const custLat = Number(activeTrip?.order?.addressSnapshot?.latitude) || 23.2599;
+        const custLng = Number(activeTrip?.order?.addressSnapshot?.longitude) || 77.4126;
+
+        if (activeTrip?.status === 'PICKED_UP' || activeTrip?.status === 'IN_TRANSIT') {
+          // En route from restaurant to customer: smoothly advance progress along vector
+          simProgressRef.current = Math.min(1, simProgressRef.current + 0.05);
+          if (simProgressRef.current >= 1) simProgressRef.current = 0.05;
+          lat = restLat + (custLat - restLat) * simProgressRef.current;
+          lng = restLng + (custLng - restLng) * simProgressRef.current;
+        } else if (activeTrip?.status === 'ACCEPTED' || activeTrip?.status === 'ARRIVED_AT_STORE') {
+          // At or near restaurant
+          lat = restLat + (Math.random() - 0.5) * 0.0005;
+          lng = restLng + (Math.random() - 0.5) * 0.0005;
+        } else {
+          // Idle standby jitter
+          const jitterLat = (Math.random() - 0.5) * 0.001;
+          const jitterLng = (Math.random() - 0.5) * 0.001;
+          lat = 23.2599 + jitterLat;
+          lng = 77.4126 + jitterLng;
+        }
+      }
+
       const currentCoords = {
-        latitude: parseFloat((baseLat + jitterLat).toFixed(5)),
-        longitude: parseFloat((baseLng + jitterLng).toFixed(5)),
+        latitude: parseFloat(lat.toFixed(6)),
+        longitude: parseFloat(lng.toFixed(6)),
       };
 
-      setGpsAccuracy(`GPS Live • ±${Math.floor(Math.random() * 3 + 3)}m`);
+      if (!isLiveGpsFresh) {
+        setGpsAccuracy(`GPS Live • ±${Math.floor(Math.random() * 2 + 2)}m`);
+      }
 
-      // 1. Emit to WebSocket
-      if (socketRef.current?.connected) {
-        socketRef.current.emit('driver:location_update', {
+      console.log(`🛵 [DRIVER GPS EMIT (${source})]:`, {
+        ...currentCoords,
+        speed,
+        heading,
+        orderId: activeTrip?.orderId || null,
+        deliveryId: activeTrip?.id || null,
+      });
+
+      // 1. Emit lightweight WebSocket telemetry to Gateway (indexes partner in Redis geospatial pool)
+      if (socketRef.current?.connected && user?.id) {
+        socketRef.current.emit('driver:location', {
           partnerUserId: user.id,
           orderId: activeTrip?.orderId,
+          deliveryId: activeTrip?.id,
+          isAvailable: !activeTrip,
+          speed,
+          heading,
+          timestamp: Date.now(),
           ...currentCoords,
         });
       }
@@ -187,7 +300,7 @@ export default function DeliveryPartnerApp() {
       if (activeTrip?.id) {
         sendGpsCoordinates(activeTrip.id, currentCoords);
       }
-    }, 8000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [user, isOnline, activeTrip]);
@@ -197,6 +310,11 @@ export default function DeliveryPartnerApp() {
     if (!user) return;
     const nextState = !isOnline;
     setIsOnline(nextState);
+
+    // If going offline, notify gateway to remove from Redis available pool
+    if (!nextState && socketRef.current?.connected) {
+      socketRef.current.emit('driver:offline', { partnerUserId: user.id });
+    }
 
     try {
       await toggleDutyStatus(user.id, nextState);

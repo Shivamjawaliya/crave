@@ -6,8 +6,11 @@ import { RestaurantStatus } from '@food-platform/shared-types';
 export class RestaurantsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(search?: string) {
+  async findAll(search?: string, isAcceptingOrders?: boolean) {
     const where: any = { status: RestaurantStatus.APPROVED };
+    if (isAcceptingOrders !== undefined) {
+      where.isAcceptingOrders = isAcceptingOrders;
+    }
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -84,6 +87,32 @@ export class RestaurantsService {
 
     return this.prisma.menuItem.update({
       where: { id: itemId },
+      data: updateData,
+    });
+  }
+
+  async updateAcceptingOrders(id: string, isAcceptingOrders: boolean) {
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id } });
+    if (!restaurant) throw new NotFoundException('Restaurant not found');
+    return this.prisma.restaurant.update({
+      where: { id },
+      data: { isAcceptingOrders },
+      include: {
+        categories: {
+          include: { items: true },
+        },
+      },
+    });
+  }
+
+  async updateStatus(id: string, data: { status?: any; isAcceptingOrders?: boolean }) {
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id } });
+    if (!restaurant) throw new NotFoundException('Restaurant not found');
+    const updateData: any = {};
+    if (data.status !== undefined) updateData.status = data.status;
+    if (data.isAcceptingOrders !== undefined) updateData.isAcceptingOrders = data.isAcceptingOrders;
+    return this.prisma.restaurant.update({
+      where: { id },
       data: updateData,
     });
   }

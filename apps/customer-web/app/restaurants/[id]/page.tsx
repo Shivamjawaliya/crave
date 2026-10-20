@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
+  ArrowRight,
   Star,
   Clock,
   Truck,
@@ -23,9 +24,11 @@ import {
   Info,
   ChevronDown,
   MapPin,
+  Percent,
 } from 'lucide-react';
 import NavbarAuth from '../../../components/NavbarAuth';
 import AddressModal from '../../../components/AddressModal';
+import DishCustomizerModal from '../../../components/DishCustomizerModal';
 import { useCartStore } from '../../../lib/store';
 import { useAddressStore } from '../../../lib/address.store';
 
@@ -53,6 +56,7 @@ interface Restaurant {
   latitude: number | null;
   longitude: number | null;
   status: string;
+  isAcceptingOrders?: boolean;
   categories: MenuCategory[];
 }
 
@@ -69,10 +73,6 @@ export default function RestaurantMenuPage() {
 
   // Customizer Modal State
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
-  const [brothStyle, setBrothStyle] = useState('rich');
-  const [noodleFirmness, setNoodleFirmness] = useState('firm');
-  const [selectedToppings, setSelectedToppings] = useState<string[]>([]);
-  const [quantity, setQuantity] = useState(1);
   const [includeUtensils, setIncludeUtensils] = useState(true);
 
   // Cart Store
@@ -107,43 +107,74 @@ export default function RestaurantMenuPage() {
     fetchRestaurant();
   }, [restaurantId]);
 
-  // Dynamic calculation for customizer modal
-  const itemFinalPrice = useMemo(() => {
-    if (!selectedItem) return 0;
-    let price = selectedItem.pricePaise / 100;
-    if (brothStyle === 'spicy') price += 0.75;
-    if (selectedToppings.includes('tamago')) price += 2.0;
-    if (selectedToppings.includes('chashu')) price += 4.0;
-    if (selectedToppings.includes('bamboo')) price += 1.5;
-    return price * quantity;
-  }, [selectedItem, brothStyle, selectedToppings, quantity]);
-
   const handleOpenCustomizer = (item: MenuItem) => {
+    if (restaurant?.isAcceptingOrders === false) {
+      alert('This kitchen has temporarily paused incoming orders. Please check back shortly!');
+      return;
+    }
     setSelectedItem(item);
-    setBrothStyle('rich');
-    setNoodleFirmness('firm');
-    setSelectedToppings([]);
-    setQuantity(1);
   };
 
-  const handleAddCustomizedItem = () => {
-    if (!selectedItem || !restaurant) return;
-    const finalPaise = Math.round(itemFinalPrice * 100 / quantity);
+  const isItemInCart = (cartItem: (typeof cartItems)[0], dishId: string) => {
+    return cartItem.menuItemId === dishId || cartItem.menuItemId.startsWith(`${dishId}-`);
+  };
 
-    const customizationNotes = [
-      brothStyle === 'spicy' ? 'Spicy Miso Broth' : 'Rich Tonkotsu',
-      noodleFirmness === 'firm' ? 'Firm (Katame)' : noodleFirmness === 'soft' ? 'Soft' : 'Regular',
-      ...selectedToppings.map((t) => t.toUpperCase()),
-    ].join(', ');
+  const getItemCartQuantity = (dishId: string) => {
+    return cartItems
+      .filter((ci) => isItemInCart(ci, dishId))
+      .reduce((sum, ci) => sum + ci.quantity, 0);
+  };
 
-    addItem(restaurant.id, restaurant.name, {
-      menuItemId: selectedItem.id,
-      name: `${selectedItem.name} (${customizationNotes})`,
-      pricePaise: finalPaise,
-      imageUrl: selectedItem.imageUrl,
-    });
+  const handleIncrementItem = (item: MenuItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (restaurant?.isAcceptingOrders === false) {
+      alert('This kitchen has temporarily paused incoming orders. Please check back shortly!');
+      return;
+    }
+    const matching = cartItems.find((ci) => isItemInCart(ci, item.id));
+    if (matching) {
+      updateQuantity(matching.menuItemId, 1);
+    } else {
+      addItem(
+        restaurant?.id || restaurantId,
+        restaurant?.name || 'Restaurant',
+        {
+          menuItemId: item.id,
+          name: item.name,
+          pricePaise: item.pricePaise,
+          imageUrl: item.imageUrl,
+        },
+        1
+      );
+    }
+  };
 
-    setSelectedItem(null);
+  const handleDecrementItem = (item: MenuItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const matchingList = cartItems.filter((ci) => isItemInCart(ci, item.id));
+    if (matchingList.length > 0) {
+      const lastItem = matchingList[matchingList.length - 1];
+      updateQuantity(lastItem.menuItemId, -1);
+    }
+  };
+
+  const handleDirectAdd = (item: MenuItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (restaurant?.isAcceptingOrders === false) {
+      alert('This kitchen has temporarily paused incoming orders. Please check back shortly!');
+      return;
+    }
+    addItem(
+      restaurant?.id || restaurantId,
+      restaurant?.name || 'Restaurant',
+      {
+        menuItemId: item.id,
+        name: item.name,
+        pricePaise: item.pricePaise,
+        imageUrl: item.imageUrl,
+      },
+      1
+    );
   };
 
   const filteredCategories = useMemo(() => {
@@ -190,17 +221,18 @@ export default function RestaurantMenuPage() {
     <div className="bg-[#f7f9ff] text-[#161c23] min-h-screen flex flex-col font-sans selection:bg-[#ffdbd1] selection:text-[#3a0a00]">
       {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-40 bg-[#f7f9ff]/95 backdrop-blur-xl border-b border-[#e4beb4]/30 shadow-[0_4px_20px_-4px_rgba(22,28,35,0.04)]">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6 shrink-0">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#ab2f00] to-[#e64000] flex items-center justify-center text-white shadow-md shadow-[#ab2f00]/25 group-hover:scale-105 transition-transform">
-                <Flame className="w-5 h-5 fill-current" />
+        <div className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#ab2f00] to-[#e64000] flex items-center justify-center text-white shadow-md shadow-[#ab2f00]/25 group-hover:scale-105 transition-transform">
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               </div>
-              <span className="font-serif font-black text-2xl tracking-tight text-[#161c23]">
+              <span className="font-serif font-black text-xl sm:text-2xl tracking-tight text-[#161c23]">
                 Crave
               </span>
             </Link>
 
+            {/* Deliver To Selector (Desktop) */}
             <div className="hidden lg:flex items-center gap-2 pl-4 border-l border-slate-200">
               <div className="w-8 h-8 rounded-full bg-[#ffdbd1] flex items-center justify-center text-[#ab2f00]">
                 <MapPin className="w-4 h-4" />
@@ -219,15 +251,30 @@ export default function RestaurantMenuPage() {
                 </button>
               </div>
             </div>
+
+            {/* Deliver To Selector (Mobile Pill) */}
+            <button
+              type="button"
+              onClick={openModal}
+              className="flex lg:hidden items-center gap-1 py-1 px-2 rounded-full bg-[#ffdbd1]/50 hover:bg-[#ffdbd1] transition max-w-[130px] sm:max-w-[180px] text-left cursor-pointer"
+              title="Change Delivery Address"
+            >
+              <MapPin className="w-3 h-3 text-[#ab2f00] shrink-0" />
+              <span suppressHydrationWarning className="text-[10px] sm:text-[11px] font-bold text-[#161c23] truncate">
+                {selectedAddress.addressLine}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-500 shrink-0" />
+            </button>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Link
               href="/cart"
-              className="flex items-center gap-2 bg-[#ab2f00] hover:bg-[#8f2700] text-white px-4 py-2 rounded-full font-bold text-xs shadow-md shadow-[#ab2f00]/25 transition"
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#ab2f00] hover:bg-[#8f2700] text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs shadow-md shadow-[#ab2f00]/25 transition"
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Cart ({totalCartCount}) • ₹{cartSubtotal}</span>
+              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Cart ({totalCartCount}) • ₹{cartSubtotal}</span>
+              <span className="sm:hidden text-[11px]">{totalCartCount > 0 ? `(${totalCartCount}) ₹${cartSubtotal}` : 'Cart'}</span>
             </Link>
             <NavbarAuth />
           </div>
@@ -235,7 +282,7 @@ export default function RestaurantMenuPage() {
       </header>
 
       {/* 2. RESTAURANT HERO COVER BANNER */}
-      <section className="relative bg-[#161c23] text-white overflow-hidden min-h-[380px] flex items-end">
+      <section className="relative bg-[#161c23] text-white overflow-hidden min-h-[260px] sm:min-h-[380px] flex items-end">
         <img
           src={coverImage}
           alt={restaurant.name}
@@ -243,32 +290,32 @@ export default function RestaurantMenuPage() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#161c23] via-[#161c23]/70 to-black/30" />
 
-        <div className="relative max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
+        <div className="relative max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 z-10 flex flex-col md:flex-row md:items-end justify-between gap-4 sm:gap-6">
+          <div className="space-y-2.5 sm:space-y-3 max-w-2xl">
             <Link
               href="/"
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold mb-2 transition border border-white/20"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md text-white text-xs font-bold mb-1 transition border border-white/20"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Explore</span>
             </Link>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full bg-[#006c49] text-white text-[10px] font-black uppercase tracking-wider shadow">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-[#006c49] text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider shadow">
                 MICHELIN GUIDE 2024
               </span>
-              <span className="px-3 py-1 rounded-full bg-slate-800/80 text-slate-200 text-[10px] font-semibold border border-slate-700">
+              <span className="px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full bg-slate-800/80 text-slate-200 text-[9px] sm:text-[10px] font-semibold border border-slate-700">
                 HANDCRAFTED NOODLES
               </span>
             </div>
 
-            <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
+            <h1 className="font-serif text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight">
               {restaurant.name}
             </h1>
 
-            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300 font-medium">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px] sm:text-xs text-slate-300 font-medium">
               <span className="flex items-center gap-1 text-amber-400 font-bold">
-                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-amber-400 text-amber-400" />
                 4.9 (1,210+ reviews)
               </span>
               <span>•</span>
@@ -281,40 +328,40 @@ export default function RestaurantMenuPage() {
           </div>
 
           {/* Right Metrics Box & Actions */}
-          <div className="flex items-center gap-3">
-            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-4 py-3 rounded-2xl text-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-center">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 EST. PREP TIME
               </span>
-              <strong className="text-sm font-extrabold text-white">20–30 min</strong>
+              <strong className="text-xs sm:text-sm font-extrabold text-white">20–30 min</strong>
             </div>
 
-            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-4 py-3 rounded-2xl text-center">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+            <div className="bg-slate-900/80 backdrop-blur-md border border-slate-700/80 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-center">
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
                 DELIVERY FEE
               </span>
-              <strong className="text-sm font-extrabold text-emerald-400">₹40 (Free &gt; ₹500)</strong>
+              <strong className="text-xs sm:text-sm font-extrabold text-emerald-400">₹40 (Free &gt; ₹500)</strong>
             </div>
 
             <button
               onClick={() => setIsFavorite(!isFavorite)}
-              className={`w-11 h-11 rounded-2xl backdrop-blur-md border border-slate-700 flex items-center justify-center transition ${
+              className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl backdrop-blur-md border border-slate-700 flex items-center justify-center transition shrink-0 ${
                 isFavorite ? 'bg-red-500 text-white' : 'bg-slate-900/80 text-white hover:bg-slate-800'
               }`}
             >
-              <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+              <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${isFavorite ? 'fill-current' : ''}`} />
             </button>
           </div>
         </div>
       </section>
 
       {/* 3. CATEGORY NAV TABS & SEARCH BAR */}
-      <section className="sticky top-20 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+      <section className="sticky top-16 sm:top-20 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-2.5 sm:py-3 flex items-center justify-between gap-3 sm:gap-4">
+          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-2 overflow-x-auto no-scrollbar touch-pan-x">
             <button
               onClick={() => setActiveTab('all')}
-              className={`px-4 py-2 rounded-full text-xs font-bold transition shrink-0 ${
+              className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs font-bold transition shrink-0 ${
                 activeTab === 'all'
                   ? 'bg-[#ab2f00] text-white shadow-sm'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -326,7 +373,7 @@ export default function RestaurantMenuPage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveTab(cat.id)}
-                className={`px-4 py-2 rounded-full text-xs font-bold transition shrink-0 ${
+                className={`px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full text-xs font-bold transition shrink-0 ${
                   activeTab === cat.id
                     ? 'bg-[#ab2f00] text-white shadow-sm'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -354,6 +401,24 @@ export default function RestaurantMenuPage() {
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1">
         {/* Left: Menu Sections */}
         <div className="lg:col-span-8 space-y-10">
+          {/* Orders Paused Notice */}
+          {restaurant.isAcceptingOrders === false && (
+            <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 flex items-center justify-between gap-4 shadow-sm animate-fade-in">
+              <div className="flex items-center gap-3.5">
+                <div className="w-3.5 h-3.5 rounded-full bg-red-500 animate-ping shrink-0" />
+                <div>
+                  <h4 className="font-extrabold text-sm text-red-900 tracking-tight">Orders Temporarily Paused</h4>
+                  <p className="text-xs text-red-700 mt-0.5">
+                    This restaurant is not accepting new orders at this time. Please check back later.
+                  </p>
+                </div>
+              </div>
+              <span className="px-3 py-1.5 bg-red-100 text-red-800 font-mono text-xs font-black rounded-xl uppercase tracking-wider shrink-0 border border-red-200">
+                Kitchen Paused
+              </span>
+            </div>
+          )}
+
           {/* Chef Special Drop Banner */}
           <div className="bg-gradient-to-r from-[#fff5f2] to-[#fffbf9] border border-[#ffdbd1] p-5 rounded-2xl flex items-start gap-4 shadow-sm">
             <div className="w-10 h-10 rounded-2xl bg-[#ffdbd1] text-[#ab2f00] flex items-center justify-center font-bold shrink-0">
@@ -387,64 +452,111 @@ export default function RestaurantMenuPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {cat.items.map((item) => (
-                    <div
-                      key={item.id}
-                      onClick={() => handleOpenCustomizer(item)}
-                      className="group cursor-pointer bg-white rounded-2xl border border-slate-200/90 p-4 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between"
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="space-y-1 min-w-0 flex-1">
-                          <h4 className="font-extrabold text-sm text-slate-900 group-hover:text-[#ab2f00] transition line-clamp-1">
-                            {item.name}
-                          </h4>
-                          <p className="text-xs text-slate-500 font-normal line-clamp-2 leading-relaxed">
-                            {item.description}
-                          </p>
-                          <div className="pt-2 flex items-center gap-2">
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
-                              House Broth
+                  {cat.items.map((item) => {
+                    const itemQty = getItemCartQuantity(item.id);
+
+                    return (
+                      <div
+                        key={item.id}
+                        id={`dish-${item.id}`}
+                        onClick={() => handleOpenCustomizer(item)}
+                        className="group cursor-pointer bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-start justify-between gap-3 sm:gap-4 scroll-mt-28 target:border-[#ab2f00] target:ring-2 target:ring-[#ab2f00]/30"
+                      >
+                        {/* Left Details */}
+                        <div className="space-y-1.5 min-w-0 flex-1 flex flex-col justify-between self-stretch">
+                          <div>
+                            {/* Veg Indicator & Reorder Tag */}
+                            <div className="flex items-center gap-2 mb-1">
+                              <div className="w-3.5 h-3.5 rounded border border-emerald-600 flex items-center justify-center p-0.5 shrink-0">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1 shrink-0">
+                                <span className="w-2.5 h-1 rounded-full bg-emerald-500 inline-block" />
+                                Highly reordered
+                              </span>
+                            </div>
+
+                            <h4 className="font-extrabold text-sm sm:text-base text-slate-900 group-hover:text-[#ab2f00] transition leading-snug line-clamp-1">
+                              {item.name}
+                            </h4>
+                            <strong className="text-slate-900 text-sm sm:text-base font-bold block pt-0.5">
+                              ₹{(item.pricePaise / 100).toFixed(0)}
+                            </strong>
+                            <p className="text-xs text-slate-500 font-normal line-clamp-2 leading-relaxed pt-1">
+                              {item.description || 'Artisan preparation crafted with fresh, premium seasonal ingredients.'}
+                            </p>
+                          </div>
+
+                          <div className="pt-2 flex items-center gap-2 text-slate-400">
+                            <span className="text-[11px] font-medium text-slate-500">
+                              House Special • Fresh Daily
                             </span>
                           </div>
                         </div>
 
-                        {item.imageUrl && (
-                          <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-slate-100 shrink-0">
+                        {/* Right: Image + Stepper / ADD Button (Zomato/Swiggy Style) */}
+                        <div className="flex flex-col items-center shrink-0 w-28 sm:w-32">
+                          <div className="relative w-28 h-24 sm:w-32 sm:h-28 rounded-2xl overflow-hidden bg-slate-100 shadow-sm">
                             <img
-                              src={item.imageUrl}
+                              src={
+                                item.imageUrl ||
+                                'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=400&auto=format&fit=crop&q=80'
+                              }
                               alt={item.name}
                               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                             />
+                          </div>
+
+                          {/* Stepper / ADD Button */}
+                          <div className="-mt-3.5 relative z-10 flex flex-col items-center w-full">
+                            {itemQty === 0 ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleDirectAdd(item, e)}
+                                className="h-8 px-4 sm:px-5 rounded-xl bg-white text-[#ab2f00] border border-[#ffdbd1] shadow-md hover:shadow-lg hover:bg-[#fff5f2] font-extrabold text-xs flex items-center justify-center gap-1 active:scale-95 transition-all cursor-pointer"
+                              >
+                                <span>ADD</span>
+                                <Plus className="w-3.5 h-3.5 text-[#ab2f00] stroke-[2.5]" />
+                              </button>
+                            ) : (
+                              <div className="h-8 px-2 rounded-xl bg-[#ab2f00] text-white shadow-md flex items-center justify-between gap-1.5 min-w-[88px] sm:min-w-[96px]">
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleDecrementItem(item, e)}
+                                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/15 active:scale-90 transition text-white cursor-pointer"
+                                  aria-label="Decrease quantity"
+                                >
+                                  <Minus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                </button>
+                                <span className="font-extrabold text-xs text-white px-1">
+                                  {itemQty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleIncrementItem(item, e)}
+                                  className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-black/15 active:scale-90 transition text-white cursor-pointer"
+                                  aria-label="Increase quantity"
+                                >
+                                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                                </button>
+                              </div>
+                            )}
+
                             <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleOpenCustomizer(item);
                               }}
-                              className="absolute bottom-1 right-1 w-7 h-7 rounded-xl bg-white text-[#ab2f00] flex items-center justify-center shadow-md hover:bg-[#ab2f00] hover:text-white transition"
+                              className="text-[10px] text-slate-400 hover:text-[#ab2f00] font-medium mt-1 transition cursor-pointer"
                             >
-                              <Plus className="w-4 h-4" />
+                              customisable
                             </button>
                           </div>
-                        )}
+                        </div>
                       </div>
-
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs mt-3">
-                        <strong className="text-[#ab2f00] text-sm font-black">
-                          ₹{(item.pricePaise / 100).toFixed(2)}
-                        </strong>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenCustomizer(item);
-                          }}
-                          className="px-3 py-1.5 rounded-xl bg-[#ffdbd1]/50 hover:bg-[#ffdbd1] text-[#ab2f00] font-bold text-xs flex items-center gap-1 transition"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>Customize & Add</span>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             ))}
@@ -564,199 +676,29 @@ export default function RestaurantMenuPage() {
         </div>
       </div>
 
-      {/* 5. INTERACTIVE ITEM CUSTOMIZER MODAL (Centerpiece of Stitch Screen) */}
-      {selectedItem && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-[28px] max-w-lg w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
-            {/* Modal Image Header */}
-            <div className="relative h-48 w-full bg-slate-900 overflow-hidden shrink-0">
-              {selectedItem.imageUrl && (
-                <img
-                  src={selectedItem.imageUrl}
-                  alt={selectedItem.name}
-                  className="w-full h-full object-cover"
-                />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-
-              <button
-                onClick={() => setSelectedItem(null)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition"
-              >
-                <X className="w-4 h-4" />
-              </button>
-
-              <div className="absolute bottom-4 left-4 right-4 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#ab2f00] text-white text-[10px] font-extrabold uppercase">
-                    House Signature
-                  </span>
-                  <span className="text-white text-[10px] bg-black/60 px-2 py-0.5 rounded-full font-medium">
-                    Prep time: 12 min
-                  </span>
-                </div>
-                <h3 className="text-xl font-black text-white">{selectedItem.name}</h3>
-                <span className="text-xs text-[#ffdbd1] font-bold block">
-                  ₹{(selectedItem.pricePaise / 100).toFixed(2)} base
-                </span>
-              </div>
-            </div>
-
-            {/* Customization Options Body */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              <p className="text-slate-600 leading-relaxed font-normal">
-                {selectedItem.description}
-              </p>
-
-              {/* Step 1: Choose Broth Style */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <strong className="text-sm font-extrabold text-slate-900">
-                    Choose Your Broth Style
-                  </strong>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#ab2f00] bg-[#ffdbd1] px-2 py-0.5 rounded-full">
-                    REQUIRED
-                  </span>
-                </div>
-
-                <div className="space-y-2">
-                  <label
-                    onClick={() => setBrothStyle('rich')}
-                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
-                      brothStyle === 'rich'
-                        ? 'border-[#ab2f00] bg-[#fff5f2]'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900 block">Rich Tonkotsu (Original Pork Collagen)</span>
-                      <span className="text-slate-500 text-[11px]">Silky, intense, umami forward</span>
-                    </div>
-                    <span className="font-bold text-slate-600">Free</span>
-                  </label>
-
-                  <label
-                    onClick={() => setBrothStyle('spicy')}
-                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
-                      brothStyle === 'spicy'
-                        ? 'border-[#ab2f00] bg-[#fff5f2]'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900 block">Spicy Miso Tonkotsu Infusion</span>
-                      <span className="text-slate-500 text-[11px]">Red Sendai miso and house chili paste</span>
-                    </div>
-                    <span className="font-bold text-[#ab2f00]">+₹60.00</span>
-                  </label>
-
-                  <label
-                    onClick={() => setBrothStyle('shoyu')}
-                    className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
-                      brothStyle === 'shoyu'
-                        ? 'border-[#ab2f00] bg-[#fff5f2]'
-                        : 'border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <div>
-                      <span className="font-bold text-slate-900 block">Roasted Garlic Shoyu Dashi</span>
-                      <span className="text-slate-500 text-[11px]">Lighter profile with aged dark soy tare</span>
-                    </div>
-                    <span className="font-bold text-slate-600">Free</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Step 2: Noodle Firmness */}
-              <div className="space-y-2">
-                <strong className="text-sm font-extrabold text-slate-900 block">
-                  Noodle Firmness
-                </strong>
-                <span className="text-[11px] text-slate-500 block">Authentic noodle chew preference</span>
-
-                <div className="grid grid-cols-3 gap-2 pt-1">
-                  {['firm', 'regular', 'soft'].map((firmness) => (
-                    <button
-                      key={firmness}
-                      onClick={() => setNoodleFirmness(firmness)}
-                      className={`py-2 px-3 rounded-xl font-bold capitalize transition ${
-                        noodleFirmness === firmness
-                          ? 'bg-[#ab2f00] text-white shadow-sm'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                      }`}
-                    >
-                      {firmness === 'firm' ? 'Firm (Katame)' : firmness === 'regular' ? 'Regular (Futsu)' : 'Soft (Yawarame)'}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Step 3: Add-ons & Extra Toppings */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <strong className="text-sm font-extrabold text-slate-900">
-                    Add-ons & Extra Toppings
-                  </strong>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase">Optional</span>
-                </div>
-
-                <div className="space-y-2">
-                  {[
-                    { id: 'tamago', label: 'Ajitsuke Soft Boiled Tamago Egg', price: '₹160.00' },
-                    { id: 'chashu', label: 'Extra Flame-Torched Chashu Belly (2 pcs)', price: '₹320.00' },
-                    { id: 'bamboo', label: 'Seasoned Menma Bamboo Shoots', price: '₹120.00' },
-                  ].map((top) => {
-                    const isChecked = selectedToppings.includes(top.id);
-                    return (
-                      <label
-                        key={top.id}
-                        onClick={() =>
-                          setSelectedToppings((prev) =>
-                            isChecked ? prev.filter((t) => t !== top.id) : [...prev, top.id],
-                          )
-                        }
-                        className={`flex items-center justify-between p-3 rounded-2xl border cursor-pointer transition ${
-                          isChecked ? 'border-[#006c49] bg-emerald-50/50' : 'border-slate-200'
-                        }`}
-                      >
-                        <span className="font-semibold text-slate-800">{top.label}</span>
-                        <span className="font-bold text-[#ab2f00]">+{top.price}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Customizer Modal Footer */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center gap-4">
-              <div className="flex items-center gap-3 bg-white border border-slate-200 px-3 py-2 rounded-2xl shadow-sm">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="text-slate-600 hover:text-red-600"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="font-black text-slate-900 text-sm w-4 text-center">{quantity}</span>
-                <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="text-slate-600 hover:text-emerald-600"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-
-              <button
-                onClick={handleAddCustomizedItem}
-                className="flex-1 py-3 px-5 rounded-2xl bg-[#ab2f00] hover:bg-[#8f2700] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#ab2f00]/30 transition"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Add to Order — ₹{itemFinalPrice.toFixed(2)}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 5. INTERACTIVE ITEM CUSTOMIZER MODAL (Pixel-perfect replica of Stitch screen 62b846e0df9b472287f65cc4b3f3a774) */}
+      <DishCustomizerModal
+        isOpen={!!selectedItem}
+        onClose={() => setSelectedItem(null)}
+        item={selectedItem}
+        restaurantId={restaurant.id}
+        restaurantName={restaurant.name}
+        currencySymbol="₹"
+        isAcceptingOrders={restaurant.isAcceptingOrders !== false}
+        onAddToCart={({ menuItemId, name, pricePaise, imageUrl, quantity }) => {
+          addItem(
+            restaurant.id,
+            restaurant.name,
+            {
+              menuItemId: `${menuItemId}-${Date.now()}`,
+              name,
+              pricePaise,
+              imageUrl,
+            },
+            quantity
+          );
+        }}
+      />
 
       {/* 6. CRAVE FOOTER */}
       <footer className="bg-white border-t border-slate-200/80 pt-12 pb-8 mt-12">

@@ -19,6 +19,7 @@ export class DeliveryService {
 
   /**
    * Get all unassigned delivery jobs ready for driver dispatch
+   * (Available only when kitchen starts PREPARING or food is READY_FOR_PICKUP, NOT when PLACED or ACCEPTED)
    */
   async getAvailableJobs() {
     const jobs = await this.prisma.delivery.findMany({
@@ -27,8 +28,6 @@ export class DeliveryService {
         order: {
           status: {
             in: [
-              OrderStatus.PLACED,
-              OrderStatus.ACCEPTED,
               OrderStatus.PREPARING,
               OrderStatus.READY_FOR_PICKUP,
             ],

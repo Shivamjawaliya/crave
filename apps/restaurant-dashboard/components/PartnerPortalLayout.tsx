@@ -32,6 +32,7 @@ interface RestaurantOption {
   id: string;
   name: string;
   address: string;
+  isAcceptingOrders?: boolean;
 }
 
 interface PartnerPortalLayoutProps {
@@ -46,6 +47,9 @@ interface PartnerPortalLayoutProps {
   audioChimeEnabled: boolean;
   onToggleAudioChime: () => void;
   isSocketConnected?: boolean;
+  isAcceptingOrders?: boolean;
+  onToggleAcceptingOrders?: () => void;
+  isTogglingOrders?: boolean;
   children: React.ReactNode;
 }
 
@@ -61,10 +65,12 @@ export default function PartnerPortalLayout({
   audioChimeEnabled,
   onToggleAudioChime,
   isSocketConnected = true,
+  isAcceptingOrders = true,
+  onToggleAcceptingOrders,
+  isTogglingOrders = false,
   children,
 }: PartnerPortalLayoutProps) {
   const router = useRouter();
-  const [isAcceptingOrders, setIsAcceptingOrders] = useState(true);
   const [isRestaurantDropdownOpen, setIsRestaurantDropdownOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
@@ -92,7 +98,14 @@ export default function PartnerPortalLayout({
 
         {/* Live Status Toggle Card */}
         <div className="px-4 mb-4">
-          <div className="p-2.5 bg-white rounded-xl shadow-sm border border-surface-container flex items-center justify-between">
+          <div
+            onClick={onToggleAcceptingOrders}
+            className={`p-2.5 bg-white rounded-xl shadow-sm border transition cursor-pointer select-none ${
+              isAcceptingOrders
+                ? 'border-surface-container hover:border-primary/40'
+                : 'border-red-200 bg-red-50/20 hover:border-red-300'
+            } flex items-center justify-between group`}
+          >
             <div className="flex items-center gap-2">
               <span
                 className={`w-2 h-2 rounded-full ${
@@ -109,11 +122,15 @@ export default function PartnerPortalLayout({
             </div>
             <button
               type="button"
-              onClick={() => setIsAcceptingOrders(!isAcceptingOrders)}
-              title="Toggle Kitchen Online Status"
-              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition"
+              disabled={isTogglingOrders}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleAcceptingOrders?.();
+              }}
+              title={isAcceptingOrders ? 'Pause Incoming Orders' : 'Resume Accepting Orders'}
+              className="p-1 text-on-surface-variant hover:text-on-surface hover:bg-surface-container rounded-md transition disabled:opacity-50"
             >
-              <Sliders className="w-3.5 h-3.5" />
+              <Sliders className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-300" />
             </button>
           </div>
         </div>

@@ -92,7 +92,7 @@ export default function LiveOrdersKdsView({
       setPinError(false);
       setVerifyingPinId(null);
       setPinInput('');
-      await handleAction(order.id, 'DELIVERED');
+      await handleAction(order.id, 'OUT_FOR_DELIVERY');
     } else {
       setPinError(true);
     }
@@ -647,7 +647,7 @@ export default function LiveOrdersKdsView({
                             className="w-full py-2.5 px-4 bg-primary hover:bg-primary-container text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center justify-center gap-1.5"
                           >
                             <UserCheck className="w-4 h-4" />
-                            <span>Verify PIN & Handover (Delivered)</span>
+                            <span>Verify PIN & Handover (On the Way)</span>
                           </button>
                           <button
                             type="button"

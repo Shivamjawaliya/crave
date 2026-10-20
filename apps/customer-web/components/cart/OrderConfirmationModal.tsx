@@ -56,7 +56,7 @@ export default function OrderConfirmationModal({
 
         <div className="space-y-2 pt-2">
           <Link
-            href="/orders"
+            href="/orders/track"
             className="w-full py-3.5 rounded-2xl bg-[#ab2f00] hover:bg-[#8f2700] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#ab2f00]/30 transition"
           >
             <span>Track Live Delivery</span>

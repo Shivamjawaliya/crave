@@ -11,6 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
 import { SocketEvents } from '@food-platform/shared-types';
 import { OrderSseService } from '../orders/order-sse.service';
+import { TelemetryService } from '../telemetry/telemetry.service';
 
 @WebSocketGateway({
   cors: { origin: '*' },
@@ -26,6 +27,7 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly configService: ConfigService,
     private readonly orderSseService: OrderSseService,
+    private readonly telemetryService: TelemetryService,
   ) {}
 
   async onModuleInit() {
@@ -57,16 +59,21 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
       });
       await this.channel.bindQueue(q.queue, 'food_events', 'order.#');
 
-      this.channel.consume(q.queue, (msg: any) => {
+      this.channel.consume(q.queue, async (msg: any) => {
         if (!msg) return;
         try {
           const raw = JSON.parse(msg.content.toString());
-          const routingKey = msg.fields.routingKey;
+          const routingKey = msg.fields.routingKey || '';
           const payload = raw.payload || raw;
           this.logger.log(`🐰 Gateway RabbitMQ received [${routingKey}]: Order ${payload.orderNumber || payload.id}`);
 
           const orderId = payload.orderId || payload.id;
           const newStatus = payload.newStatus || payload.status;
+          const isNewOrder =
+            routingKey === 'order.placed' ||
+            routingKey === 'order.created' ||
+            (newStatus === 'PLACED' && !routingKey.includes('status'));
+
           const statusPayload = {
             orderId,
             id: orderId,
@@ -82,26 +89,60 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
           // 1. Broadcast to SSE (Lightweight 1-Way Customer Stream for millions of users)
           this.orderSseService.broadcast(statusPayload);
 
-          // 2. Broadcast to connected WebSocket clients (Restaurant Dashboards, Drivers & KDS)
-          this.server.emit('restaurant:new_order', payload);
-          this.server.emit('order:placed', payload);
-          this.server.emit('order_status_updated', statusPayload);
-          this.server.emit(SocketEvents.ORDER_STATUS, payload);
-          this.server.to('drivers').emit('delivery:broadcast_job', payload);
-          this.server.emit('delivery:broadcast_job', payload);
-
-          if (payload.restaurantId) {
-            this.server.to(`restaurant_${payload.restaurantId}`).emit('restaurant:new_order', payload);
-            this.server.to(`restaurant:${payload.restaurantId}`).emit('restaurant:new_order', payload);
-            this.server.to(`restaurant_${payload.restaurantId}`).emit('order_status_updated', statusPayload);
-            this.server.to(`restaurant:${payload.restaurantId}`).emit('order_status_updated', statusPayload);
+          // 2. Targeted WebSocket broadcasts (Deduplicated rooms)
+          if (isNewOrder) {
+            if (payload.restaurantId) {
+              this.server
+                .to([`restaurant:${payload.restaurantId}`, `restaurant_${payload.restaurantId}`])
+                .emit('restaurant:new_order', payload);
+            }
+          } else {
+            // Lifecycle status update (preparing, ready, delivered, etc.)
+            if (payload.restaurantId) {
+              this.server
+                .to([`restaurant:${payload.restaurantId}`, `restaurant_${payload.restaurantId}`])
+                .emit('order_status_updated', statusPayload);
+              this.server
+                .to([`restaurant:${payload.restaurantId}`, `restaurant_${payload.restaurantId}`])
+                .emit('order:status', statusPayload);
+            }
           }
 
           if (orderId) {
-            this.server.to(`order:${orderId}`).emit('order_status_updated', statusPayload);
-            this.server.to(`order_${orderId}`).emit('order_status_updated', statusPayload);
-            this.server.to(`order:${orderId}`).emit(SocketEvents.ORDER_STATUS, payload);
-            this.server.to(`order_${orderId}`).emit(SocketEvents.ORDER_STATUS, payload);
+            this.server
+              .to([`order:${orderId}`, `order_${orderId}`])
+              .emit('order_status_updated', statusPayload);
+            this.server
+              .to([`order:${orderId}`, `order_${orderId}`])
+              .emit(SocketEvents.ORDER_STATUS, payload);
+          }
+
+          // 🚀 Search for delivery partner when restaurant starts PREPARING (NOT on creation)
+          if (newStatus === 'PREPARING') {
+            this.logger.log(`🍳 Order ${orderId} is now PREPARING. Searching Redis for nearest delivery partner...`);
+            await this.dispatchToNearestPartner(payload);
+          } else if (newStatus === 'READY_FOR_PICKUP') {
+            // Backup check: if order reached READY_FOR_PICKUP, trigger dispatch if still pending
+            await this.dispatchToNearestPartner(payload);
+          }
+
+          if (newStatus === 'DELIVERED' || newStatus === 'CANCELLED') {
+            if (orderId) {
+              await this.telemetryService.cleanupOrderTelemetry(orderId, payload.deliveryId);
+
+              // Notify customer sockets in room that tracking has concluded
+              this.server
+                .to([`order:${orderId}`, `order_${orderId}`])
+                .emit('order:tracking_ended', { orderId, status: newStatus });
+
+              // Disconnect and eject all sockets from the delivered order room
+              setTimeout(() => {
+                this.server
+                  .in([`order:${orderId}`, `order_${orderId}`])
+                  .socketsLeave([`order:${orderId}`, `order_${orderId}`]);
+                this.logger.log(`🔌 [SOCKET SEVERED] All sockets disconnected from order:${orderId} after delivery`);
+              }, 1000);
+            }
           }
 
           this.channel.ack(msg);
@@ -181,19 +222,113 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
     return { status: 'subscribed', room: 'drivers' };
   }
 
-  @SubscribeMessage('driver:location_update')
-  handleDriverLocationUpdate(
+  @SubscribeMessage('driver:offline')
+  async handleDriverOffline(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { partnerUserId?: string; orderId?: string; latitude: number; longitude: number },
+    @MessageBody() data: { partnerUserId?: string },
   ) {
-    if (!data) return;
-    if (data.orderId) {
-      this.server.to(`order:${data.orderId}`).emit('delivery:location', data);
-      this.server.to(`order_${data.orderId}`).emit('delivery:location', data);
-      this.server.to(`order:${data.orderId}`).emit('driver:location', data);
-      this.server.to(`order_${data.orderId}`).emit('driver:location', data);
+    if (data?.partnerUserId) {
+      await this.telemetryService.removeDriverFromPool(data.partnerUserId);
+      this.logger.log(`🛵 Driver ${data.partnerUserId} marked offline in Redis pool`);
     }
-    this.server.emit('driver:live_coordinates', data);
-    return { status: 'received', timestamp: new Date().toISOString() };
+    return { status: 'offline' };
+  }
+
+  @SubscribeMessage('driver:location')
+  @SubscribeMessage('driver:location_update')
+  async handleDriverLocationUpdate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      partnerUserId?: string;
+      orderId?: string;
+      deliveryId?: string;
+      latitude: number;
+      longitude: number;
+      speed?: number;
+      heading?: number;
+      timestamp?: number;
+      isAvailable?: boolean;
+    },
+  ) {
+    if (!data || data.latitude === undefined || data.longitude === undefined) {
+      return { status: 'error', message: 'Invalid coordinates' };
+    }
+
+    // 1. Always record driver presence in Redis geospatial pool if partnerUserId is present
+    if (data.partnerUserId) {
+      await this.telemetryService.recordDriverLocation({
+        partnerUserId: data.partnerUserId,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        speed: data.speed,
+        heading: data.heading,
+        isAvailable: data.isAvailable ?? (!data.orderId && !data.deliveryId),
+      });
+    }
+
+    // 2. If on an active delivery trip, record order telemetry and stream to customer room
+    if (data.orderId || data.deliveryId) {
+      const orderId = data.orderId || data.deliveryId!;
+      const telemetry = await this.telemetryService.recordLocation({
+        ...data,
+        orderId,
+      });
+
+      // Targeted real-time broadcast to the customer viewing this order
+      this.server
+        .to([`order:${orderId}`, `order_${orderId}`])
+        .emit('driver:location_updated', telemetry);
+
+      // Backward compatibility for existing listeners
+      this.server
+        .to([`order:${orderId}`, `order_${orderId}`])
+        .emit('delivery:location', telemetry.curr);
+
+      return { status: 'received', bearing: telemetry.bearing, timestamp: telemetry.updatedAt };
+    }
+
+    return { status: 'driver_presence_recorded' };
+  }
+
+  /**
+   * Calculate nearest delivery partner from Redis coordinates and dispatch targeted job
+   */
+  async dispatchToNearestPartner(payload: any) {
+    const orderId = payload.orderId || payload.id;
+    let pickupLat = payload.restaurant?.latitude ? Number(payload.restaurant.latitude) : null;
+    let pickupLng = payload.restaurant?.longitude ? Number(payload.restaurant.longitude) : null;
+
+    if (!pickupLat || !pickupLng) {
+      pickupLat = 23.2324;
+      pickupLng = 77.4300;
+    }
+
+    const nearest = await this.telemetryService.findNearestDriver(pickupLat, pickupLng);
+
+    if (nearest) {
+      this.logger.log(
+        `🎯 [DISPATCH TO NEAREST PARTNER] Order ${orderId} targeted directly to driver ${nearest.partnerUserId} (${nearest.distanceKm} km away)`,
+      );
+
+      // Targeted notification exclusively to this nearest driver
+      this.server
+        .to([`driver_${nearest.partnerUserId}`, `driver:${nearest.partnerUserId}`])
+        .emit('delivery:broadcast_job', {
+          ...payload,
+          nearest: true,
+          matchedDriverId: nearest.partnerUserId,
+          distanceKm: nearest.distanceKm,
+          estimatedPickupMinutes: nearest.estimatedPickupMinutes,
+        });
+
+      // Backup broadcast to all drivers after 15 seconds if unassigned
+      setTimeout(() => {
+        this.server.to('drivers').emit('delivery:broadcast_job', payload);
+      }, 15000);
+    } else {
+      this.logger.warn(`No nearest driver found in Redis for order ${orderId}, broadcasting to general pool`);
+      this.server.to('drivers').emit('delivery:broadcast_job', payload);
+    }
   }
 }

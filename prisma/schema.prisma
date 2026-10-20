@@ -88,19 +88,23 @@ model RefreshSession {
 }
 
 model Address {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label       String?
-  addressLine String
-  city        String?
-  state       String?
-  pincode     String?
-  latitude    Float?
-  longitude   Float?
-  isDefault   Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label        String?
+  houseNumber  String?
+  landmark     String?
+  contactName  String?
+  contactPhone String?
+  addressLine  String
+  city         String?
+  state        String?
+  pincode      String?
+  latitude     Float?
+  longitude    Float?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([userId])
 }
@@ -114,14 +118,16 @@ model Restaurant {
   address     String
   latitude    Float?
   longitude   Float?
-  status      RestaurantStatus @default(PENDING)
-  categories  MenuCategory[]
-  orders      Order[]
-  reviews     Review[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  status            RestaurantStatus @default(PENDING)
+  isAcceptingOrders Boolean          @default(true)
+  categories        MenuCategory[]
+  orders            Order[]
+  reviews           Review[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
   @@index([status])
+  @@index([status, isAcceptingOrders])
   @@index([ownerId])
 }
 

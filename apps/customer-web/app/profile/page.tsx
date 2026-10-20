@@ -172,17 +172,18 @@ export default function CustomerProfilePage() {
     <div className="bg-[#f7f9ff] text-[#161c23] min-h-screen flex flex-col font-sans selection:bg-[#ffdbd1] selection:text-[#3a0a00]">
       {/* 1. TOP HEADER */}
       <header className="sticky top-0 z-40 bg-[#f7f9ff]/95 backdrop-blur-xl border-b border-[#e4beb4]/30 shadow-[0_4px_20px_-4px_rgba(22,28,35,0.04)]">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-6 shrink-0">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#ab2f00] to-[#e64000] flex items-center justify-center text-white shadow-md shadow-[#ab2f00]/25 group-hover:scale-105 transition-transform">
-                <Flame className="w-5 h-5 fill-current" />
+        <div className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-6 shrink-0">
+            <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-[#ab2f00] to-[#e64000] flex items-center justify-center text-white shadow-md shadow-[#ab2f00]/25 group-hover:scale-105 transition-transform">
+                <Flame className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
               </div>
-              <span className="font-serif font-black text-2xl tracking-tight text-[#161c23]">
+              <span className="font-serif font-black text-xl sm:text-2xl tracking-tight text-[#161c23]">
                 Crave
               </span>
             </Link>
 
+            {/* Deliver To Selector (Desktop) */}
             <button
               type="button"
               onClick={openModal}
@@ -203,15 +204,29 @@ export default function CustomerProfilePage() {
                 </span>
               </div>
             </button>
+
+            {/* Deliver To Selector (Mobile Pill) */}
+            <button
+              type="button"
+              onClick={openModal}
+              className="flex lg:hidden items-center gap-1 py-1 px-2 rounded-full bg-[#ffdbd1]/50 hover:bg-[#ffdbd1] transition max-w-[130px] sm:max-w-[180px] text-left cursor-pointer"
+              title="Change Delivery Address"
+            >
+              <MapPin className="w-3 h-3 text-[#ab2f00] shrink-0" />
+              <span suppressHydrationWarning className="text-[10px] sm:text-[11px] font-bold text-[#161c23] truncate">
+                {selectedAddress.addressLine}
+              </span>
+            </button>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <Link
               href="/cart"
-              className="flex items-center gap-2 bg-[#ab2f00] hover:bg-[#8f2700] text-white px-4 py-2 rounded-full font-bold text-xs shadow-md shadow-[#ab2f00]/25 transition"
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#ab2f00] hover:bg-[#8f2700] text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs shadow-md shadow-[#ab2f00]/25 transition"
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>Cart ({totalCartCount}) • ₹{cartSubtotal}</span>
+              <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Cart ({totalCartCount}) • ₹{cartSubtotal}</span>
+              <span className="sm:hidden text-[11px]">{totalCartCount > 0 ? `(${totalCartCount})` : 'Cart'}</span>
             </Link>
             <NavbarAuth />
           </div>
@@ -368,21 +383,26 @@ export default function CustomerProfilePage() {
                   <button
                     type="button"
                     onClick={handleSignOut}
-                    className="w-full py-2.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition flex items-center justify-center gap-1.5"
+                    className="w-full py-3 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition flex items-center justify-center gap-2 border border-red-200/60"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
+                    <LogOut className="w-4 h-4" />
                     <span>Sign Out of Account</span>
                   </button>
                 </div>
               </div>
 
-              {/* Quick Summary Card */}
+              {/* Past Orders & Activity Overview Card */}
               <div className="bg-slate-900 text-white rounded-3xl p-6 space-y-4 shadow-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-slate-400">
-                    Activity Overview
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-[#ffdbd1]" />
+                    <span className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
+                      Past Orders & History
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 border border-emerald-800/60 px-2 py-0.5 rounded-full">
+                    Live Tracking
                   </span>
-                  <Flame className="w-4 h-4 text-[#ffdbd1]" />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 pt-1">
@@ -402,9 +422,10 @@ export default function CustomerProfilePage() {
 
                 <Link
                   href="/orders"
-                  className="w-full py-3 rounded-2xl bg-[#ab2f00] hover:bg-[#8f2700] text-white text-xs font-bold flex items-center justify-center gap-2 transition"
+                  className="w-full py-3.5 rounded-2xl bg-[#ab2f00] hover:bg-[#8f2700] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-lg shadow-[#ab2f00]/30 transition"
                 >
-                  <span>Go to Orders Tracking</span>
+                  <Package className="w-4 h-4" />
+                  <span>View All Past Orders ({orderCount})</span>
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>

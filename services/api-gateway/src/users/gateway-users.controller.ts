@@ -95,6 +95,10 @@ export class GatewayUsersController {
     @Body()
     body: {
       label?: string;
+      houseNumber?: string;
+      landmark?: string;
+      contactName?: string;
+      contactPhone?: string;
       addressLine: string;
       city?: string;
       state?: string;
