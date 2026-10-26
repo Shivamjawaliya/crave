@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useCartStore, STITCH_DEFAULT_CART_ITEMS } from '../lib/store';
 import { useAddressStore } from '../lib/address.store';
 import { useOrderStore } from '../lib/order.store';
+import { resolveCoordinatesFromAddress } from '../lib/geo.utils';
 import { DropoffMode, DeliverySpeed, PaymentMethod } from '../components/cart/types';
 
 export function useCheckout() {
@@ -170,6 +171,11 @@ export function useCheckout() {
         // ignore
       }
 
+      const destCoords =
+        selectedAddress?.latitude != null && selectedAddress?.longitude != null
+          ? { latitude: selectedAddress.latitude, longitude: selectedAddress.longitude }
+          : resolveCoordinatesFromAddress(selectedAddress?.addressLine, selectedAddress?.city);
+
       const res = await fetch(`${gatewayUrl}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,8 +195,8 @@ export function useCheckout() {
             city: selectedAddress?.city || 'Bhopal',
             state: selectedAddress?.state || 'Madhya Pradesh',
             pincode: selectedAddress?.pincode || '462001',
-            latitude: selectedAddress?.latitude ?? 23.2599,
-            longitude: selectedAddress?.longitude ?? 77.4126,
+            latitude: destCoords.latitude,
+            longitude: destCoords.longitude,
             customerName: selectedAddress?.contactName || customerName,
             customerPhone: selectedAddress?.contactPhone || customerPhone,
             instructions,
@@ -218,6 +224,11 @@ export function useCheckout() {
     } catch (err) {
       console.error('Order placement exception:', err);
     } finally {
+      const destCoords =
+        selectedAddress?.latitude != null && selectedAddress?.longitude != null
+          ? { latitude: selectedAddress.latitude, longitude: selectedAddress.longitude }
+          : resolveCoordinatesFromAddress(selectedAddress?.addressLine, selectedAddress?.city);
+
       setTimeout(() => {
         setIsPlacingOrder(false);
         setPlacedOrderNumber(finalOrderNum);
@@ -229,6 +240,8 @@ export function useCheckout() {
           restaurantId: activeRestId,
           restaurantName: activeRestName,
           restaurantAddress: 'Craft Kitchen Corridor',
+          restaurantLatitude: 23.2324,
+          restaurantLongitude: 77.4300,
           status: 'PLACED',
           statusText: 'Order Placed • Waiting for Kitchen',
           etaMinutes: '25–35 min',
@@ -250,9 +263,11 @@ export function useCheckout() {
           deliveryAddress: {
             label: selectedAddress?.label || 'Home',
             addressLine: selectedAddress?.addressLine || '742 Evergreen Terrace, Apartment 4B',
-            city: selectedAddress?.city || 'Springfield',
+            city: selectedAddress?.city || 'Bhopal',
             instructions: instructions || 'Contactless Drop-off Requested. Front callbox code is #4192.',
             deliveryOtp: '4192',
+            latitude: destCoords.latitude,
+            longitude: destCoords.longitude,
           },
           courier: {
             name: 'Marcus Chen',

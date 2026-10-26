@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { resolveCoordinatesFromAddress } from './geo.utils';
 
 export interface UserAddress {
   id?: string;
@@ -23,9 +24,11 @@ const DEFAULT_FALLBACK_ADDRESS: UserAddress = {
   id: 'default-fallback',
   label: 'Home',
   addressLine: '742 Evergreen Terrace, Apt 4B',
-  city: 'Springfield',
-  state: 'OR',
-  pincode: '97477',
+  city: 'Bhopal',
+  state: 'Madhya Pradesh',
+  pincode: '462001',
+  latitude: 23.2450,
+  longitude: 77.4320,
   isDefault: true,
 };
 
@@ -78,7 +81,13 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
     try {
       const saved = localStorage.getItem('crave_selected_address');
       if (saved) {
-        set({ selectedAddress: JSON.parse(saved), isHydrated: true });
+        const parsed = JSON.parse(saved);
+        if (parsed.latitude == null || parsed.longitude == null) {
+          const coords = resolveCoordinatesFromAddress(parsed.addressLine, parsed.city);
+          parsed.latitude = coords.latitude;
+          parsed.longitude = coords.longitude;
+        }
+        set({ selectedAddress: parsed, isHydrated: true });
         return;
       }
     } catch {}
@@ -90,7 +99,23 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
       try {
         const res = await fetch(`${API_BASE}/users/${userId}/addresses`);
         if (!res.ok) throw new Error('Failed to fetch addresses');
-        const data: UserAddress[] = await res.json();
+        const rawData: UserAddress[] = await res.json();
+
+        const data = rawData.map((addr) => {
+          const isLegacyHardcoded =
+            (addr.latitude === 23.2599 && addr.longitude === 77.4126) ||
+            (addr.latitude === 23.2450 && addr.longitude === 77.4320);
+
+          if (addr.latitude == null || addr.longitude == null || isLegacyHardcoded) {
+            const coords = resolveCoordinatesFromAddress(addr.addressLine, addr.city);
+            return {
+              ...addr,
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            };
+          }
+          return addr;
+        });
 
         if (data.length > 0) {
           set({ addresses: data });
@@ -117,9 +142,22 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
     },
 
     selectAddress: (address: UserAddress) => {
-      set({ selectedAddress: address });
+      let finalAddr = address;
+      const isLegacyHardcoded =
+        (finalAddr.latitude === 23.2599 && finalAddr.longitude === 77.4126) ||
+        (finalAddr.latitude === 23.2450 && finalAddr.longitude === 77.4320);
+
+      if (finalAddr.latitude == null || finalAddr.longitude == null || isLegacyHardcoded) {
+        const coords = resolveCoordinatesFromAddress(finalAddr.addressLine, finalAddr.city);
+        finalAddr = {
+          ...finalAddr,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
+      }
+      set({ selectedAddress: finalAddr });
       if (typeof window !== 'undefined') {
-        localStorage.setItem('crave_selected_address', JSON.stringify(address));
+        localStorage.setItem('crave_selected_address', JSON.stringify(finalAddr));
       }
     },
 

@@ -30,6 +30,7 @@ import NavbarAuth from '../../../components/NavbarAuth';
 import AddressModal from '../../../components/AddressModal';
 import { useOrderStore, ActiveOrder, DEFAULT_ACTIVE_ORDER } from '../../../lib/order.store';
 import { useAddressStore } from '../../../lib/address.store';
+import { resolveCoordinatesFromAddress } from '../../../lib/geo.utils';
 
 // Client-only dynamic Leaflet Map
 const LiveOrderTrackingMap = dynamic(
@@ -86,6 +87,23 @@ function mapBackendOrderToActiveOrder(backendOrder: any): ActiveOrder {
   }
 
   const addr = backendOrder.addressSnapshot || {};
+  const rawLat = addr.latitude != null ? Number(addr.latitude) : null;
+  const rawLng = addr.longitude != null ? Number(addr.longitude) : null;
+  const isLegacyHardcoded =
+    (rawLat === 23.2599 && rawLng === 77.4126) ||
+    (rawLat === 23.2450 && rawLng === 77.4320);
+
+  const destCoords =
+    rawLat != null && rawLng != null && !isNaN(rawLat) && !isLegacyHardcoded
+      ? { latitude: rawLat, longitude: rawLng }
+      : resolveCoordinatesFromAddress(addr.addressLine, addr.city);
+
+  const rawRestLat = backendOrder.restaurant?.latitude != null ? Number(backendOrder.restaurant.latitude) : null;
+  const rawRestLng = backendOrder.restaurant?.longitude != null ? Number(backendOrder.restaurant.longitude) : null;
+  const restCoords =
+    rawRestLat != null && rawRestLng != null && !isNaN(rawRestLat)
+      ? { latitude: rawRestLat, longitude: rawRestLng }
+      : resolveCoordinatesFromAddress(backendOrder.restaurant?.address || backendOrder.restaurant?.name || 'Restaurant', 'Bhopal');
 
   return {
     id: backendOrder.id,
@@ -93,6 +111,8 @@ function mapBackendOrderToActiveOrder(backendOrder: any): ActiveOrder {
     restaurantId: backendOrder.restaurantId || 'rest-1',
     restaurantName: backendOrder.restaurant?.name || 'Restaurant',
     restaurantAddress: backendOrder.restaurant?.address || undefined,
+    restaurantLatitude: restCoords.latitude,
+    restaurantLongitude: restCoords.longitude,
     status: uiStatus,
     statusText:
       uiStatus === 'DELIVERED'
@@ -135,6 +155,8 @@ function mapBackendOrderToActiveOrder(backendOrder: any): ActiveOrder {
       city: addr.city || 'Bhopal',
       instructions: addr.instructions || 'Contactless Drop-off Requested.',
       deliveryOtp: addr.deliveryOtp || addr.callboxCode?.replace('#', '') || '3497',
+      latitude: destCoords.latitude,
+      longitude: destCoords.longitude,
     },
     courier: {
       name: backendOrder.delivery?.partner?.name || 'Marcus Chen',
@@ -337,6 +359,40 @@ export default function LiveOrderTrackingPage() {
       if (eventSource) eventSource.close();
     };
   }, [hydrateFromStorage, hydrateAddress, setActiveOrder]);
+
+  // Sync destination if user switches address via AddressModal or navbar
+  useEffect(() => {
+    if (selectedAddress && selectedAddress.addressLine) {
+      setLiveOrder((prev) => {
+        if (!prev) return prev;
+        const currentAddr = prev.deliveryAddress;
+        if (
+          currentAddr.addressLine !== selectedAddress.addressLine ||
+          (selectedAddress.latitude != null && currentAddr.latitude !== selectedAddress.latitude)
+        ) {
+          const coords =
+            selectedAddress.latitude != null && selectedAddress.longitude != null
+              ? { latitude: selectedAddress.latitude, longitude: selectedAddress.longitude }
+              : resolveCoordinatesFromAddress(selectedAddress.addressLine, selectedAddress.city);
+
+          const updated: ActiveOrder = {
+            ...prev,
+            deliveryAddress: {
+              ...prev.deliveryAddress,
+              label: selectedAddress.label,
+              addressLine: selectedAddress.addressLine,
+              city: selectedAddress.city || 'Bhopal',
+              latitude: coords.latitude,
+              longitude: coords.longitude,
+            },
+          };
+          setActiveOrder(updated);
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [selectedAddress, setActiveOrder]);
 
   const order = liveOrder || activeOrder || DEFAULT_ACTIVE_ORDER;
   const status = order.status;
@@ -721,13 +777,13 @@ export default function LiveOrderTrackingPage() {
                     restaurant={{
                       name: order.restaurantName,
                       address: order.restaurantAddress,
-                      latitude: 23.2599,
-                      longitude: 77.4126,
+                      latitude: order.restaurantLatitude ?? 23.2324,
+                      longitude: order.restaurantLongitude ?? 77.4300,
                     }}
                     customerAddress={{
                       addressLine: order.deliveryAddress.addressLine,
-                      latitude: 23.2450,
-                      longitude: 77.4320,
+                      latitude: order.deliveryAddress.latitude ?? selectedAddress?.latitude,
+                      longitude: order.deliveryAddress.longitude ?? selectedAddress?.longitude,
                     }}
                     onStatusUpdate={handleStatusUpdate}
                   />
@@ -745,9 +801,18 @@ export default function LiveOrderTrackingPage() {
                       Delivery Destination
                     </span>
                   </div>
-                  <span className="text-[11px] text-[#006c49] font-bold bg-emerald-50 px-2 py-0.5 rounded">
-                    Confirmed GPS Drop-off
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-[#006c49] font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                      Confirmed GPS Drop-off
+                    </span>
+                    <button
+                      type="button"
+                      onClick={openModal}
+                      className="text-xs font-bold text-[#ab2f00] hover:underline cursor-pointer"
+                    >
+                      Change
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -987,19 +1052,19 @@ export default function LiveOrderTrackingPage() {
             restaurant={{
               name: order.restaurantName,
               address: order.restaurantAddress,
-              latitude: 23.2599,
-              longitude: 77.4126,
+              latitude: order.restaurantLatitude ?? 23.2324,
+              longitude: order.restaurantLongitude ?? 77.4300,
             }}
             customerAddress={{
               addressLine: order.deliveryAddress.addressLine,
-              latitude: 23.2450,
-              longitude: 77.4320,
+              latitude: order.deliveryAddress.latitude ?? selectedAddress?.latitude,
+              longitude: order.deliveryAddress.longitude ?? selectedAddress?.longitude,
             }}
             onStatusUpdate={handleStatusUpdate}
           />
 
           {/* Top GPS Active Overlay Pill */}
-          <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none z-10">
+          <div className="absolute top-3 inset-x-3 flex items-center justify-between pointer-events-none z-10 gap-2">
             <div className="bg-white/95 backdrop-blur-md px-3 py-1 rounded-full shadow-md flex items-center gap-1.5 pointer-events-auto">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="text-[10px] font-bold text-slate-800">
@@ -1007,13 +1072,25 @@ export default function LiveOrderTrackingPage() {
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleShareLink}
-              className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-md flex items-center justify-center text-slate-700 pointer-events-auto active:scale-95 transition"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              <button
+                type="button"
+                onClick={openModal}
+                className="bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 text-[10px] font-bold text-[#ab2f00] hover:bg-slate-50 transition cursor-pointer"
+              >
+                <MapPin className="w-3 h-3 text-[#ab2f00]" />
+                <span className="truncate max-w-[100px]">{order.deliveryAddress.addressLine}</span>
+                <span className="underline ml-0.5">Edit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleShareLink}
+                className="w-8 h-8 rounded-full bg-white/95 backdrop-blur-md shadow-md flex items-center justify-center text-slate-700 active:scale-95 transition"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 

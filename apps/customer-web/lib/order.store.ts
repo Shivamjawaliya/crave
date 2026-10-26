@@ -14,6 +14,8 @@ export interface ActiveOrder {
   restaurantId: string;
   restaurantName: string;
   restaurantAddress?: string;
+  restaurantLatitude?: number | null;
+  restaurantLongitude?: number | null;
   status: 'PLACED' | 'PREPARING' | 'ON_THE_WAY' | 'DELIVERED';
   statusText: string;
   etaMinutes: string; // e.g. "14–19 min"
@@ -34,6 +36,8 @@ export interface ActiveOrder {
     city?: string;
     instructions?: string;
     deliveryOtp?: string;
+    latitude?: number | null;
+    longitude?: number | null;
   };
   courier: {
     name: string;
@@ -51,6 +55,8 @@ export const DEFAULT_ACTIVE_ORDER: ActiveOrder = {
   restaurantId: 'cmvee935z0006hd1gmf1pea4s',
   restaurantName: 'Juicy Cafe',
   restaurantAddress: 'Dev adhikari , nehru nagar , bhopal',
+  restaurantLatitude: 23.2185,
+  restaurantLongitude: 77.4042,
   status: 'DELIVERED',
   statusText: 'Delivered Safely 🎉',
   etaMinutes: 'Delivered',
@@ -79,6 +85,8 @@ export const DEFAULT_ACTIVE_ORDER: ActiveOrder = {
     city: 'Bhopal',
     instructions: 'Please leave package on the bench next to Apt 4B door. Ring bell once.',
     deliveryOtp: '3497',
+    latitude: 23.2185,
+    longitude: 77.4042,
   },
   courier: {
     name: 'Marcus Chen',

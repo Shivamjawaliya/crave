@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Navigation, Bike, Store, Home, Radio, Compass, RefreshCw, ZoomIn, ZoomOut } from 'lucide-react';
+import { resolveCoordinatesFromAddress } from '../lib/geo.utils';
 
 interface LocationPoint {
   latitude: number;
@@ -59,11 +60,21 @@ export default function LiveOrderTrackingMap({
   const [bearingDeg, setBearingDeg] = useState<number>(45);
   const [isMapLoaded, setIsMapLoaded] = useState(false);
 
-  // Fallback Coordinates (Bhopal default if not provided)
+  // Intelligent resolution: use provided coordinates or deduce from address line
+  const resolvedCustCoords = useMemo(() => {
+    if (customerAddress.latitude != null && customerAddress.longitude != null && !isNaN(Number(customerAddress.latitude))) {
+      return {
+        latitude: Number(customerAddress.latitude),
+        longitude: Number(customerAddress.longitude),
+      };
+    }
+    return resolveCoordinatesFromAddress(customerAddress.addressLine);
+  }, [customerAddress.latitude, customerAddress.longitude, customerAddress.addressLine]);
+
   const restLat = Number(restaurant.latitude) || 23.2324;
   const restLng = Number(restaurant.longitude) || 77.4300;
-  const custLat = Number(customerAddress.latitude) || 23.2599;
-  const custLng = Number(customerAddress.longitude) || 77.4126;
+  const custLat = resolvedCustCoords.latitude;
+  const custLng = resolvedCustCoords.longitude;
 
   // 1. Fetch Driving Route from OSRM
   const fetchDrivingRoute = useCallback(async (start: [number, number], end: [number, number]) => {

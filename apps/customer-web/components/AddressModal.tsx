@@ -17,6 +17,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useAddressStore, UserAddress } from '../lib/address.store';
+import { resolveCoordinatesFromAddress } from '../lib/geo.utils';
 
 export default function AddressModal() {
   const {
@@ -178,6 +179,37 @@ export default function AddressModal() {
       ].filter(Boolean);
       const fullAddress = fullAddressParts.join(', ');
 
+      let resolvedLat = latitude;
+      let resolvedLng = longitude;
+
+      // If user typed address without GPS, forward-geocode using MapTiler API
+      if (resolvedLat == null || resolvedLng == null) {
+        try {
+          const apiKey = process.env.NEXT_PUBLIC_MAPTILER_API_KEY || '9AJpC1Tfsixo02KS8Bpv';
+          const query = `${addressLine.trim()}, ${city.trim()}`.trim();
+          const geoRes = await fetch(
+            `https://api.maptiler.com/geocoding/${encodeURIComponent(query)}.json?key=${apiKey}`
+          );
+          if (geoRes.ok) {
+            const geoData = await geoRes.json();
+            if (geoData.features && geoData.features.length > 0) {
+              const [fLng, fLat] = geoData.features[0].geometry.coordinates;
+              resolvedLat = fLat;
+              resolvedLng = fLng;
+            }
+          }
+        } catch (e) {
+          console.warn('MapTiler forward geocode failed, falling back:', e);
+        }
+      }
+
+      // If still missing, resolve from known Bhopal neighborhood landmarks or deterministic offset
+      if (resolvedLat == null || resolvedLng == null) {
+        const fallbackCoords = resolveCoordinatesFromAddress(fullAddress, city.trim());
+        resolvedLat = fallbackCoords.latitude;
+        resolvedLng = fallbackCoords.longitude;
+      }
+
       const payload = {
         label: targetLabel,
         houseNumber: houseNumber.trim() || undefined,
@@ -188,8 +220,8 @@ export default function AddressModal() {
         city: city.trim(),
         state: state.trim(),
         pincode: pincode.trim(),
-        latitude: latitude ?? undefined,
-        longitude: longitude ?? undefined,
+        latitude: resolvedLat ?? undefined,
+        longitude: resolvedLng ?? undefined,
         isDefault,
       };
 
@@ -210,7 +242,10 @@ export default function AddressModal() {
       setHouseNumber('');
       setLandmark('');
       setAddressLine('');
+      setLatitude(null);
+      setLongitude(null);
       setGpsSuccess(false);
+      setDetectedSummary('');
       setShowAddForm(false);
       closeModal();
     } catch (err: any) {
@@ -277,7 +312,13 @@ export default function AddressModal() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setShowAddForm(true)}
+                  onClick={() => {
+                    setLatitude(null);
+                    setLongitude(null);
+                    setGpsSuccess(false);
+                    setDetectedSummary('');
+                    setShowAddForm(true);
+                  }}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ab2f00] hover:text-[#8f2700] bg-[#ffdbd1]/60 hover:bg-[#ffdbd1] px-3.5 py-1.5 rounded-full transition shadow-sm cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -485,7 +526,14 @@ export default function AddressModal() {
                   required
                   placeholder="e.g. MP Nagar Zone 2 / Indiranagar"
                   value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
+                  onChange={(e) => {
+                    setAddressLine(e.target.value);
+                    if (gpsSuccess) {
+                      setGpsSuccess(false);
+                      setLatitude(null);
+                      setLongitude(null);
+                    }
+                  }}
                   className="w-full px-3.5 py-2.5 text-sm sm:text-xs rounded-xl border border-slate-200 focus:outline-none focus:border-[#ab2f00] bg-slate-50/50 focus:bg-white"
                 />
               </div>
