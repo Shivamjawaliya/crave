@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   MapPin,
   Plus,
@@ -15,9 +16,22 @@ import {
   Phone,
   User,
   CheckCircle2,
+  Map as MapIcon,
+  Compass,
 } from 'lucide-react';
 import { useAddressStore, UserAddress } from '../lib/address.store';
 import { resolveCoordinatesFromAddress } from '../lib/geo.utils';
+import type { PickedLocation } from './MapLocationPicker';
+
+const MapLocationPicker = dynamic(() => import('./MapLocationPicker'), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-72 bg-slate-100 rounded-2xl flex flex-col items-center justify-center gap-2 text-slate-500 border border-slate-200">
+      <Loader2 className="w-6 h-6 animate-spin text-[#ab2f00]" />
+      <span className="text-xs font-bold">Loading interactive map...</span>
+    </div>
+  ),
+});
 
 export default function AddressModal() {
   const {
@@ -35,10 +49,11 @@ export default function AddressModal() {
 
   const [userId, setUserId] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // GPS Current Location state
+  // GPS & Map Pin location state
   const [isLocating, setIsLocating] = useState(false);
   const [gpsSuccess, setGpsSuccess] = useState(false);
   const [detectedSummary, setDetectedSummary] = useState('');
@@ -78,6 +93,20 @@ export default function AddressModal() {
   const handleSelect = (addr: UserAddress) => {
     selectAddress(addr);
     closeModal();
+  };
+
+  // 🗺️ Callback when user confirms a location on the interactive map
+  const handleMapLocationConfirmed = (picked: PickedLocation) => {
+    setLatitude(picked.latitude);
+    setLongitude(picked.longitude);
+    setAddressLine(picked.addressLine);
+    setCity(picked.city);
+    setState(picked.state);
+    setPincode(picked.pincode);
+    setGpsSuccess(true);
+    setDetectedSummary(`${picked.addressLine}, ${picked.city} (${picked.latitude}, ${picked.longitude})`);
+    setShowMapPicker(false);
+    setShowAddForm(true);
   };
 
   // 📍 Use My Current Location (Zomato style with MapTiler reverse geocoding)
@@ -246,6 +275,7 @@ export default function AddressModal() {
       setLongitude(null);
       setGpsSuccess(false);
       setDetectedSummary('');
+      setShowMapPicker(false);
       setShowAddForm(false);
       closeModal();
     } catch (err: any) {
@@ -310,20 +340,39 @@ export default function AddressModal() {
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
                   Saved Addresses ({addresses.length})
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setLatitude(null);
-                    setLongitude(null);
-                    setGpsSuccess(false);
-                    setDetectedSummary('');
-                    setShowAddForm(true);
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ab2f00] hover:text-[#8f2700] bg-[#ffdbd1]/60 hover:bg-[#ffdbd1] px-3.5 py-1.5 rounded-full transition shadow-sm cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add New Address</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLatitude(null);
+                      setLongitude(null);
+                      setGpsSuccess(false);
+                      setDetectedSummary('');
+                      setShowMapPicker(true);
+                      setShowAddForm(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-900 bg-emerald-100/80 hover:bg-emerald-200/80 border border-emerald-300 px-3 py-1.5 rounded-full transition shadow-sm cursor-pointer"
+                  >
+                    <MapIcon className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Select on Map</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLatitude(null);
+                      setLongitude(null);
+                      setGpsSuccess(false);
+                      setDetectedSummary('');
+                      setShowMapPicker(false);
+                      setShowAddForm(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[#ab2f00] hover:text-[#8f2700] bg-[#ffdbd1]/60 hover:bg-[#ffdbd1] px-3.5 py-1.5 rounded-full transition shadow-sm cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Address</span>
+                  </button>
+                </div>
               </div>
 
               {addresses.map((addr) => {
@@ -441,48 +490,123 @@ export default function AddressModal() {
                 </button>
               </div>
 
-              {/* 📍 1. Use My Current Location Button (Zomato Style) */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 border border-emerald-200 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <Crosshair className={`w-5 h-5 ${isLocating ? 'animate-spin' : ''}`} />
+              {/* 📍 Location Input Options: Interactive Map Drop-Pin or Device GPS */}
+              {showMapPicker ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-[#ffdbd1] text-[#ab2f00] flex items-center justify-center">
+                        <MapIcon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900">Drop Point on Map</h4>
+                        <p className="text-[10px] text-slate-500">
+                          Click anywhere on the map or drag the pin to set your exact doorstep
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-xs font-black text-emerald-950">Current GPS Location</h4>
-                      <p className="text-[10px] text-emerald-700">
-                        Autofill area, city & coordinates directly from device
-                      </p>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMapPicker(false)}
+                      className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
+                    >
+                      Hide Map
+                    </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleUseCurrentLocation}
-                    disabled={isLocating}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition flex items-center gap-1.5 shrink-0 cursor-pointer disabled:opacity-50"
-                  >
-                    {isLocating ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        <span>Locating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Navigation className="w-3.5 h-3.5" />
-                        <span>Use My Location</span>
-                      </>
-                    )}
-                  </button>
+                  <MapLocationPicker
+                    initialLat={latitude}
+                    initialLng={longitude}
+                    initialAddressLine={addressLine}
+                    onConfirm={handleMapLocationConfirmed}
+                    onCancel={() => setShowMapPicker(false)}
+                  />
                 </div>
+              ) : (
+                <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* 🗺️ Option A: Select from Map / Drop Pin */}
+                    <button
+                      type="button"
+                      onClick={() => setShowMapPicker(true)}
+                      className="p-3.5 rounded-2xl bg-gradient-to-br from-amber-50 via-orange-50/60 to-amber-50 border-2 border-amber-200/90 hover:border-[#ab2f00] text-left transition flex items-center justify-between group shadow-xs cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#ab2f00] to-[#e64000] text-white flex items-center justify-center shrink-0 shadow-md shadow-[#ab2f00]/25 group-hover:scale-105 transition-transform">
+                          <MapIcon className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-black text-slate-900 truncate flex items-center gap-1">
+                            <span>Select on Map</span>
+                          </h4>
+                          <p className="text-[10px] text-slate-500 line-clamp-1">
+                            Drop a pin at your exact doorstep
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-[#ab2f00] bg-white px-2.5 py-1 rounded-lg border border-amber-200 shrink-0 shadow-2xs group-hover:bg-[#ab2f00] group-hover:text-white transition-colors">
+                        Drop Pin
+                      </span>
+                    </button>
 
-                {gpsSuccess && (
-                  <div className="mt-2.5 pt-2 border-t border-emerald-200/80 flex items-center gap-1.5 text-[11px] font-bold text-emerald-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>Location detected: {detectedSummary || addressLine}</span>
+                    {/* 📍 Option B: Use Current Device GPS */}
+                    <button
+                      type="button"
+                      onClick={handleUseCurrentLocation}
+                      disabled={isLocating}
+                      className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50 via-teal-50/60 to-emerald-50 border-2 border-emerald-200/90 hover:border-emerald-600 text-left transition flex items-center justify-between group shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-emerald-600/25 group-hover:scale-105 transition-transform">
+                          {isLocating ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          ) : (
+                            <Crosshair className="w-5 h-5" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-black text-emerald-950 truncate flex items-center gap-1">
+                            <span>Use Device GPS</span>
+                          </h4>
+                          <p className="text-[10px] text-emerald-700 line-clamp-1">
+                            Autofill live sensor location
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shrink-0 shadow-2xs group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                        {isLocating ? 'Locating...' : 'Auto-detect'}
+                      </span>
+                    </button>
                   </div>
-                )}
-              </div>
+
+                  {/* Confirmed Pin / GPS Status Badge */}
+                  {(latitude != null || gpsSuccess) && (
+                    <div className="p-3 rounded-2xl bg-emerald-50/90 border border-emerald-200/90 flex items-center justify-between gap-3 shadow-2xs animate-in fade-in">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-[10px] uppercase font-black text-emerald-800 tracking-wider block">
+                            ✓ Coordinates Pinned on Map
+                          </span>
+                          <p className="text-xs font-extrabold text-slate-900 truncate">
+                            {addressLine || 'Pinned Location'}
+                          </p>
+                          <span className="text-[10px] font-mono font-bold text-slate-500">
+                            Lat: {latitude?.toFixed(6)}, Lng: {longitude?.toFixed(6)}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker(true)}
+                        className="text-xs font-black text-[#ab2f00] hover:underline px-2.5 py-1 rounded-lg bg-white border border-amber-200 shrink-0 cursor-pointer shadow-2xs"
+                      >
+                        Adjust Pin
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 🏠 2. Doorstep Specifics: House No & Landmark */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
