@@ -32,7 +32,16 @@ export class PaymentsService {
     const body = `${data.razorpayOrderId}|${data.razorpayPaymentId}`;
     const expected = crypto.createHmac('sha256', secret).update(body).digest('hex');
 
-    const isValid = data.razorpaySignature === expected || secret === 'placeholder_secret';
+    let isValid = secret === 'placeholder_secret';
+    if (!isValid && data.razorpaySignature) {
+      try {
+        const sigBuf = Buffer.from(data.razorpaySignature, 'hex');
+        const expBuf = Buffer.from(expected, 'hex');
+        isValid = sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+      } catch {
+        isValid = false;
+      }
+    }
     if (!isValid) throw new BadRequestException('Invalid signature');
 
     await this.prisma.$transaction(async (tx) => {

@@ -4,6 +4,15 @@ const API_BASE = (
   'http://localhost:3001/api/v1'
 ).replace(/\/+$/, '');
 
+function getAuthHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('delivery_token') : null;
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...headers,
+  };
+}
+
 export interface DriverUser {
   id: string;
   name: string;
@@ -137,7 +146,9 @@ export async function registerDriver(payload: {
 }
 
 export async function fetchDriverProfile(partnerUserId: string): Promise<DriverProfileResponse> {
-  const res = await fetch(`${API_BASE}/delivery/profile/${partnerUserId}`);
+  const res = await fetch(`${API_BASE}/delivery/profile/${partnerUserId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch driver profile');
   }
@@ -147,7 +158,7 @@ export async function fetchDriverProfile(partnerUserId: string): Promise<DriverP
 export async function toggleDutyStatus(partnerUserId: string, isAvailable: boolean) {
   const res = await fetch(`${API_BASE}/delivery/profile/${partnerUserId}/availability`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ isAvailable }),
   });
   return res.json();
@@ -159,20 +170,24 @@ export async function updateDriverDetails(
 ) {
   const res = await fetch(`${API_BASE}/delivery/profile/${partnerUserId}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify(data),
   });
   return res.json();
 }
 
 export async function fetchAvailableJobs(): Promise<DeliveryTrip[]> {
-  const res = await fetch(`${API_BASE}/delivery/jobs`);
+  const res = await fetch(`${API_BASE}/delivery/jobs`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) return [];
   return res.json();
 }
 
 export async function fetchActiveTrip(partnerUserId: string): Promise<DeliveryTrip | null> {
-  const res = await fetch(`${API_BASE}/delivery/active/${partnerUserId}`);
+  const res = await fetch(`${API_BASE}/delivery/active/${partnerUserId}`, {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) return null;
   return res.json();
 }
@@ -180,7 +195,7 @@ export async function fetchActiveTrip(partnerUserId: string): Promise<DeliveryTr
 export async function acceptDeliveryJob(deliveryId: string, partnerUserId: string): Promise<DeliveryTrip> {
   const res = await fetch(`${API_BASE}/delivery/jobs/${deliveryId}/accept`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ partnerUserId }),
   });
   const data = await res.json();
@@ -197,7 +212,7 @@ export async function updateDeliveryStatus(
 ) {
   const res = await fetch(`${API_BASE}/delivery/jobs/${deliveryId}/status`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ status, ...extraData }),
   });
   const data = await res.json();
@@ -214,7 +229,7 @@ export async function sendGpsCoordinates(
   try {
     await fetch(`${API_BASE}/delivery/jobs/${deliveryId}/location`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(coords),
     });
   } catch {}
@@ -228,7 +243,7 @@ export async function reportTripIssue(
 ) {
   const res = await fetch(`${API_BASE}/delivery/jobs/${deliveryId}/report-issue`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ partnerUserId, reason, notes }),
   });
   return res.json();

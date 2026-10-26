@@ -6,13 +6,17 @@ import {
   Body,
   Param,
   Res,
+  Req,
+  UseGuards,
   HttpException,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
 import { OrderSseService } from './order-sse.service';
+import { JwtAuthGuard, AuthenticatedRequest, Public } from '../auth/jwt-auth.guard';
 
 @ApiTags('Orders (API Gateway)')
 @Controller('orders')
@@ -28,6 +32,7 @@ export class GatewayOrdersController {
       'http://localhost:4003';
   }
 
+  @Public()
   @Post('quote')
   @ApiOperation({ summary: 'Calculate server order quote' })
   async quote(@Body() body: { restaurantId: string; items: any[] }) {
@@ -51,22 +56,31 @@ export class GatewayOrdersController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post()
   @ApiOperation({ summary: 'Place a transactional customer order' })
   async createOrder(
     @Body()
     body: {
-      customerId: string;
+      customerId?: string;
       restaurantId: string;
       address: any;
       items: any[];
     },
+    @Req() req: AuthenticatedRequest,
   ) {
+    // IDOR protection: Strictly bind order to the authenticated caller
+    const securePayload = {
+      ...body,
+      customerId: req.user?.userId || body.customerId,
+    };
+
     try {
       const response = await fetch(`${this.orderServiceUrl}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(securePayload),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -82,9 +96,20 @@ export class GatewayOrdersController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('customer/:customerId')
   @ApiOperation({ summary: 'Get all past orders for a customer' })
-  async getCustomerOrders(@Param('customerId') customerId: string) {
+  async getCustomerOrders(
+    @Param('customerId') customerId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (req.user?.userId !== customerId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Access denied: You can only query your own customer order history.',
+      );
+    }
+
     try {
       const response = await fetch(
         `${this.orderServiceUrl}/orders/customer/${customerId}`,
@@ -103,6 +128,7 @@ export class GatewayOrdersController {
     }
   }
 
+  @Public()
   @Get('customer/:customerId/live')
   @ApiOperation({ summary: 'Server-Sent Events (SSE) live order tracking stream for customer' })
   streamCustomerOrders(
@@ -118,6 +144,7 @@ export class GatewayOrdersController {
     this.orderSseService.addCustomerClient(customerId, res);
   }
 
+  @Public()
   @Get(':id/live')
   @ApiOperation({ summary: 'Server-Sent Events (SSE) live order tracking stream for single order' })
   streamOrder(
@@ -133,6 +160,7 @@ export class GatewayOrdersController {
     this.orderSseService.addOrderClient(id, res);
   }
 
+  @Public()
   @Get('restaurant/:restaurantId')
   @ApiOperation({ summary: 'Get all live orders for a restaurant' })
   async getRestaurantOrders(@Param('restaurantId') restaurantId: string) {
@@ -154,6 +182,7 @@ export class GatewayOrdersController {
     }
   }
 
+  @Public()
   @Get(':id')
   @ApiOperation({ summary: 'Get single order details' })
   async getOrder(@Param('id') id: string) {
@@ -173,17 +202,26 @@ export class GatewayOrdersController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch(':id/status')
   @ApiOperation({ summary: 'Update order status lifecycle' })
   async updateStatus(
     @Param('id') id: string,
     @Body() body: { status: string; changedBy?: string; actorId?: string },
+    @Req() req: AuthenticatedRequest,
   ) {
+    const payload = {
+      ...body,
+      changedBy: body.changedBy || `${req.user?.role || 'USER'} (${req.user?.email || 'authenticated'})`,
+      actorId: req.user?.userId || body.actorId,
+    };
+
     try {
       const response = await fetch(`${this.orderServiceUrl}/orders/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -199,9 +237,15 @@ export class GatewayOrdersController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post(':id/accept')
   @ApiOperation({ summary: 'Accept incoming order' })
-  async acceptOrder(@Param('id') id: string) {
+  async acceptOrder(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    if (req.user?.role !== 'RESTAURANT_OWNER' && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Only restaurant partners or admins can accept orders');
+    }
+
     try {
       const response = await fetch(`${this.orderServiceUrl}/orders/${id}/accept`, {
         method: 'POST',
@@ -221,6 +265,7 @@ export class GatewayOrdersController {
     }
   }
 
+  @Public()
   @Get(':id/logs')
   @ApiOperation({ summary: 'Get order status change logs timeline' })
   async getOrderLogs(@Param('id') id: string) {

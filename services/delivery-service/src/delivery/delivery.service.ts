@@ -189,7 +189,7 @@ export class DeliveryService {
       const addr = (delivery.order?.addressSnapshot as any) || {};
       const expectedPickupOtp = addr.pickupOtp || addr.verificationCode;
       if (extraData?.verificationCode && expectedPickupOtp) {
-        if (extraData.verificationCode !== expectedPickupOtp && extraData.verificationCode !== '4821') {
+        if (extraData.verificationCode !== expectedPickupOtp) {
           throw new BadRequestException(
             `Invalid Pickup OTP (${extraData.verificationCode}). Please show the 4-digit code from your driver app to the kitchen staff.`
           );

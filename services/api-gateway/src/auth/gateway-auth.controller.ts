@@ -5,11 +5,32 @@ import {
   Body,
   Param,
   Headers,
+  Req,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+
+// In-memory sliding rate limiter for brute-force prevention
+const authRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string, maxAttempts = 10, windowMs = 60000) {
+  const now = Date.now();
+  const entry = authRateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    authRateLimitMap.set(ip, { count: 1, resetAt: now + windowMs });
+    return;
+  }
+  if (entry.count >= maxAttempts) {
+    const waitSec = Math.ceil((entry.resetAt - now) / 1000);
+    throw new HttpException(
+      `Too many authentication attempts. Please try again in ${waitSec} seconds.`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+  entry.count++;
+}
 
 @ApiTags('Auth (API Gateway)')
 @Controller('auth')
@@ -32,7 +53,11 @@ export class GatewayAuthController {
       password: string;
       role?: string;
     },
+    @Req() req: any,
   ) {
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'anonymous';
+    checkRateLimit(String(clientIp), 10, 60000);
+
     // Allow CUSTOMER, DELIVERY_PARTNER, and RESTAURANT_OWNER registrations
     const allowedRoles = ['CUSTOMER', 'DELIVERY_PARTNER', 'RESTAURANT_OWNER'];
     const assignedRole = (body.role && allowedRoles.includes(body.role)) ? body.role : 'CUSTOMER';
@@ -76,7 +101,11 @@ export class GatewayAuthController {
       email: string;
       password: string;
     },
+    @Req() req: any,
   ) {
+    const clientIp = req.ip || req.headers['x-forwarded-for'] || 'anonymous';
+    checkRateLimit(String(clientIp), 8, 60000); // Max 8 attempts per minute
+
     try {
       const response = await fetch(`${this.authServiceUrl}/login`, {
         method: 'POST',

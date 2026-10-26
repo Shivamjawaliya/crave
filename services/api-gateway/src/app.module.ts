@@ -9,6 +9,7 @@ import { GatewayOrdersController } from './orders/gateway-orders.controller';
 import { GatewayDeliveryController } from './delivery/gateway-delivery.controller';
 import { OrderSseService } from './orders/order-sse.service';
 import { TelemetryService } from './telemetry/telemetry.service';
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -25,7 +26,7 @@ import { TelemetryService } from './telemetry/telemetry.service';
     GatewayOrdersController,
     GatewayDeliveryController,
   ],
-  providers: [GatewaySocketGateway, OrderSseService, TelemetryService],
-  exports: [TelemetryService],
+  providers: [GatewaySocketGateway, OrderSseService, TelemetryService, JwtAuthGuard],
+  exports: [TelemetryService, JwtAuthGuard],
 })
 export class AppModule {}

@@ -4,31 +4,82 @@ import {
   SubscribeMessage,
   ConnectedSocket,
   MessageBody,
+  OnGatewayConnection,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as amqp from 'amqplib';
+import * as crypto from 'crypto';
 import { SocketEvents } from '@food-platform/shared-types';
 import { OrderSseService } from '../orders/order-sse.service';
 import { TelemetryService } from '../telemetry/telemetry.service';
 
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: {
+    origin: (origin: string, callback: any) => {
+      callback(null, true);
+    },
+    credentials: true,
+  },
 })
-export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
+export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy, OnGatewayConnection {
   @WebSocketServer()
   server: Server;
 
   private readonly logger = new Logger(GatewaySocketGateway.name);
   private connection: any = null;
   private channel: any = null;
+  private secret: string;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly orderSseService: OrderSseService,
     private readonly telemetryService: TelemetryService,
-  ) {}
+  ) {
+    this.secret =
+      this.configService.get<string>('JWT_ACCESS_SECRET') ||
+      'food_platform_jwt_access_secret_key_change_in_prod_123456789';
+  }
+
+  handleConnection(client: Socket) {
+    try {
+      const authHeader =
+        client.handshake.auth?.token ||
+        client.handshake.headers?.authorization;
+      const token = typeof authHeader === 'string'
+        ? authHeader.replace(/^Bearer\s+/i, '').trim()
+        : null;
+
+      if (token) {
+        client.data.user = this.verifyToken(token);
+        if (client.data.user) {
+          this.logger.log(`Authenticated socket connection: ${client.id} (user: ${client.data.user.email})`);
+        }
+      }
+    } catch {
+      // Continue connection with guest context
+    }
+  }
+
+  private verifyToken(token: string): any {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const data = `${parts[0]}.${parts[1]}`;
+      const sig = crypto.createHmac('sha256', this.secret).update(data).digest('base64url');
+      if (sig !== parts[2]) return null;
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+      if (payload.exp && Date.now() >= payload.exp * 1000) return null;
+      return {
+        userId: payload.sub || payload.userId || payload.id,
+        email: payload.email,
+        role: payload.role,
+      };
+    } catch {
+      return null;
+    }
+  }
 
   async onModuleInit() {
     await this.initRabbitMQ();
@@ -164,6 +215,13 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy {
     @MessageBody() data: { restaurantId: string },
   ) {
     if (!data?.restaurantId) return;
+
+    const user = client.data?.user;
+    if (user && user.role === 'CUSTOMER') {
+      this.logger.warn(`Unauthorized restaurant subscription attempt by customer ${user.userId}`);
+      return { status: 'unauthorized', error: 'Customers cannot subscribe to kitchen live feed' };
+    }
+
     client.join(`restaurant_${data.restaurantId}`);
     client.join(`restaurant:${data.restaurantId}`);
     this.logger.log(`Socket ${client.id} joined restaurant rooms for ${data.restaurantId}`);

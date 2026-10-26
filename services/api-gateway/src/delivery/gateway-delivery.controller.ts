@@ -6,12 +6,16 @@ import {
   Body,
   Param,
   Query,
+  Req,
+  UseGuards,
   HttpException,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { TelemetryService } from '../telemetry/telemetry.service';
+import { JwtAuthGuard, AuthenticatedRequest, Public } from '../auth/jwt-auth.guard';
 
 @ApiTags('Delivery (API Gateway)')
 @Controller('delivery')
@@ -27,6 +31,7 @@ export class GatewayDeliveryController {
       'http://localhost:4005';
   }
 
+  @Public()
   @Get('orders/:orderId/telemetry')
   @ApiOperation({ summary: 'Get cached live driver telemetry from Redis (last 2 points + bearing)' })
   async getOrderTelemetry(@Param('orderId') orderId: string) {
@@ -37,6 +42,7 @@ export class GatewayDeliveryController {
     return telemetry;
   }
 
+  @Public()
   @Get('drivers/nearest')
   @ApiOperation({ summary: 'Find nearest delivery partners from Redis by location coordinates' })
   async findNearestDrivers(
@@ -61,6 +67,7 @@ export class GatewayDeliveryController {
     };
   }
 
+  @Public()
   @Post('dispatch/nearest')
   @ApiOperation({ summary: 'Calculate nearest delivery partner from Redis and dispatch job' })
   async dispatchNearest(
@@ -84,6 +91,7 @@ export class GatewayDeliveryController {
     };
   }
 
+  @Public()
   @Get('jobs')
   @ApiOperation({ summary: 'List unassigned delivery jobs ready for dispatch' })
   async getJobs() {
@@ -103,9 +111,18 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('active/:partnerUserId')
   @ApiOperation({ summary: 'Get current active delivery trip for driver' })
-  async getActiveTrip(@Param('partnerUserId') partnerUserId: string) {
+  async getActiveTrip(
+    @Param('partnerUserId') partnerUserId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (req.user?.userId !== partnerUserId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Access denied: You can only view your own active delivery trip.');
+    }
+
     try {
       const response = await fetch(
         `${this.deliveryServiceUrl}/delivery/active/${partnerUserId}`,
@@ -124,14 +141,26 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('jobs/:id/accept')
   @ApiOperation({ summary: 'Accept delivery assignment' })
-  async acceptJob(@Param('id') id: string, @Body() body: { partnerUserId: string }) {
+  async acceptJob(
+    @Param('id') id: string,
+    @Body() body: { partnerUserId?: string },
+    @Req() req: AuthenticatedRequest,
+  ) {
+    // Prevent IDOR: Always bind assignment to the authenticated partner
+    const securePartnerUserId = req.user?.userId || body.partnerUserId;
+    if (!securePartnerUserId) {
+      throw new HttpException('Partner ID required', HttpStatus.BAD_REQUEST);
+    }
+
     try {
       const response = await fetch(`${this.deliveryServiceUrl}/delivery/jobs/${id}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ partnerUserId: securePartnerUserId }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -147,6 +176,8 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch('jobs/:id/status')
   @ApiOperation({ summary: 'Update trip status' })
   async updateStatus(
@@ -182,6 +213,8 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('jobs/:id/location')
   @ApiOperation({ summary: 'Record partner GPS location' })
   async recordLocation(
@@ -208,9 +241,18 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Get('profile/:partnerUserId')
   @ApiOperation({ summary: 'Get driver profile, duty status & earnings stats' })
-  async getProfile(@Param('partnerUserId') partnerUserId: string) {
+  async getProfile(
+    @Param('partnerUserId') partnerUserId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    if (req.user?.userId !== partnerUserId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Access denied: You can only view your own driver profile.');
+    }
+
     try {
       const response = await fetch(
         `${this.deliveryServiceUrl}/delivery/profile/${partnerUserId}`,
@@ -229,12 +271,19 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch('profile/:partnerUserId/availability')
   @ApiOperation({ summary: 'Toggle online / offline availability duty switch' })
   async toggleAvailability(
     @Param('partnerUserId') partnerUserId: string,
     @Body() body: { isAvailable: boolean },
+    @Req() req: AuthenticatedRequest,
   ) {
+    if (req.user?.userId !== partnerUserId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Access denied: You can only update your own duty status.');
+    }
+
     try {
       const response = await fetch(
         `${this.deliveryServiceUrl}/delivery/profile/${partnerUserId}/availability`,
@@ -258,6 +307,8 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Patch('profile/:partnerUserId')
   @ApiOperation({ summary: 'Update driver vehicle profile or details' })
   async updateProfile(
@@ -269,7 +320,12 @@ export class GatewayDeliveryController {
       emergencyContact?: string;
       name?: string;
     },
+    @Req() req: AuthenticatedRequest,
   ) {
+    if (req.user?.userId !== partnerUserId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException('Access denied: You can only update your own vehicle profile.');
+    }
+
     try {
       const response = await fetch(
         `${this.deliveryServiceUrl}/delivery/profile/${partnerUserId}`,
@@ -293,6 +349,8 @@ export class GatewayDeliveryController {
     }
   }
 
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @Post('jobs/:id/report-issue')
   @ApiOperation({ summary: 'Report exception or cancellation issue on a trip' })
   async reportIssue(

@@ -7,13 +7,19 @@ import {
   Delete,
   Body,
   Param,
+  Req,
+  UseGuards,
   HttpException,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { JwtAuthGuard, AuthenticatedRequest } from '../auth/jwt-auth.guard';
 
 @ApiTags('Users & Addresses (API Gateway)')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class GatewayUsersController {
   private authServiceUrl: string;
@@ -24,9 +30,18 @@ export class GatewayUsersController {
       'http://localhost:4001';
   }
 
+  private verifyOwnership(req: AuthenticatedRequest, targetUserId: string) {
+    if (req.user?.userId !== targetUserId && req.user?.role !== 'ADMIN') {
+      throw new ForbiddenException(
+        'Access denied: You are not authorized to view or modify this user account.',
+      );
+    }
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get user profile' })
-  async getProfile(@Param('id') id: string) {
+  async getProfile(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(`${this.authServiceUrl}/users/${id}`);
       const data = await response.json();
@@ -48,7 +63,9 @@ export class GatewayUsersController {
   async updateProfile(
     @Param('id') id: string,
     @Body() body: { name?: string },
+    @Req() req: AuthenticatedRequest,
   ) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(`${this.authServiceUrl}/users/${id}`, {
         method: 'PATCH',
@@ -71,7 +88,8 @@ export class GatewayUsersController {
 
   @Get(':id/addresses')
   @ApiOperation({ summary: 'Get all saved addresses for a user' })
-  async getAddresses(@Param('id') id: string) {
+  async getAddresses(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(`${this.authServiceUrl}/users/${id}/addresses`);
       const data = await response.json();
@@ -107,7 +125,9 @@ export class GatewayUsersController {
       latitude?: number;
       longitude?: number;
     },
+    @Req() req: AuthenticatedRequest,
   ) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(`${this.authServiceUrl}/users/${id}/addresses`, {
         method: 'POST',
@@ -133,7 +153,9 @@ export class GatewayUsersController {
   async setDefaultAddress(
     @Param('id') id: string,
     @Param('addressId') addressId: string,
+    @Req() req: AuthenticatedRequest,
   ) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(
         `${this.authServiceUrl}/users/${id}/addresses/${addressId}/default`,
@@ -161,7 +183,9 @@ export class GatewayUsersController {
   async deleteAddress(
     @Param('id') id: string,
     @Param('addressId') addressId: string,
+    @Req() req: AuthenticatedRequest,
   ) {
+    this.verifyOwnership(req, id);
     try {
       const response = await fetch(
         `${this.authServiceUrl}/users/${id}/addresses/${addressId}`,

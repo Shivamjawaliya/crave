@@ -328,9 +328,13 @@ export default function RestaurantDashboardView({
       const gatewayUrl =
         (process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://localhost:3001/api/v1').replace(/\/+$/, '');
 
+      const token = getOwnerToken();
       const res = await fetch(`${gatewayUrl}/orders/${orderId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ status: nextStatus, changedBy: 'RESTAURANT' }),
       });
 
