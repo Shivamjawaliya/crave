@@ -18,7 +18,6 @@ function deliveryFetch(endpoint: string, options: RequestInit = {}) {
     ? endpoint
     : `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   return fetch(url, {
-    credentials: 'include',
     ...options,
     headers: getAuthHeaders(options.headers as Record<string, string>),
   });

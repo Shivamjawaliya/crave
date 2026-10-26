@@ -331,7 +331,6 @@ export default function RestaurantDashboardView({
       const token = getOwnerToken();
       const res = await fetch(`${gatewayUrl}/orders/${orderId}/status`, {
         method: 'PATCH',
-        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
