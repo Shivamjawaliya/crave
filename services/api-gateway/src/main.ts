@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -8,6 +9,9 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');
+
+  // Cookie parser middleware for httpOnly session cookies
+  app.use(cookieParser());
 
   // Security Headers
   app.use((_req: any, res: any, next: any) => {

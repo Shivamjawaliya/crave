@@ -47,17 +47,29 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const authHeader = req.headers['authorization'];
-    const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
-
-    if (!headerValue || !headerValue.startsWith('Bearer ')) {
-      throw new UnauthorizedException('Authentication required: Missing or invalid Bearer token');
+    
+    // 1. Try httpOnly cookie first
+    let token: string | null = null;
+    if (req.cookies && typeof req.cookies['access_token'] === 'string') {
+      token = req.cookies['access_token'];
     }
 
-    const token = headerValue.slice(7).trim();
+    // 2. Fall back to Authorization Bearer header
+    if (!token) {
+      const authHeader = req.headers['authorization'];
+      const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
+      if (headerValue && headerValue.startsWith('Bearer ')) {
+        token = headerValue.slice(7).trim();
+      }
+    }
+
+    if (!token) {
+      throw new UnauthorizedException('Authentication required: Missing access token or session cookie');
+    }
+
     const verifiedUser = this.verifyToken(token);
     if (!verifiedUser) {
-      throw new UnauthorizedException('Invalid or expired authentication token');
+      throw new UnauthorizedException('Invalid or expired authentication session');
     }
 
     req.user = verifiedUser;

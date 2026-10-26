@@ -6,11 +6,13 @@ import {
   Param,
   Headers,
   Req,
+  Res,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 
 // In-memory sliding rate limiter for brute-force prevention
 const authRateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -30,6 +32,28 @@ function checkRateLimit(ip: string, maxAttempts = 10, windowMs = 60000) {
     );
   }
   entry.count++;
+}
+
+function setAuthCookies(res: Response, accessToken?: string) {
+  if (!accessToken) return;
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.cookie('access_token', accessToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
+
+function clearAuthCookies(res: Response) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('access_token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/',
+  });
 }
 
 @ApiTags('Auth (API Gateway)')
@@ -54,6 +78,7 @@ export class GatewayAuthController {
       role?: string;
     },
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || 'anonymous';
     checkRateLimit(String(clientIp), 10, 60000);
@@ -83,6 +108,8 @@ export class GatewayAuthController {
           response.status,
         );
       }
+
+      setAuthCookies(res, data.accessToken);
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
@@ -102,6 +129,7 @@ export class GatewayAuthController {
       password: string;
     },
     @Req() req: any,
+    @Res({ passthrough: true }) res: Response,
   ) {
     const clientIp = req.ip || req.headers['x-forwarded-for'] || 'anonymous';
     checkRateLimit(String(clientIp), 8, 60000); // Max 8 attempts per minute
@@ -120,6 +148,8 @@ export class GatewayAuthController {
           response.status,
         );
       }
+
+      setAuthCookies(res, data.accessToken);
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
@@ -142,6 +172,7 @@ export class GatewayAuthController {
       restaurantAddress?: string;
       restaurantDescription?: string;
     },
+    @Res({ passthrough: true }) res: Response,
   ) {
     try {
       const response = await fetch(`${this.authServiceUrl}/restaurant/register`, {
@@ -157,6 +188,8 @@ export class GatewayAuthController {
           response.status,
         );
       }
+
+      setAuthCookies(res, data.accessToken);
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
@@ -175,6 +208,7 @@ export class GatewayAuthController {
       email: string;
       password: string;
     },
+    @Res({ passthrough: true }) res: Response,
   ) {
     try {
       const response = await fetch(`${this.authServiceUrl}/restaurant/login`, {
@@ -190,6 +224,8 @@ export class GatewayAuthController {
           response.status,
         );
       }
+
+      setAuthCookies(res, data.accessToken);
       return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
@@ -202,15 +238,22 @@ export class GatewayAuthController {
 
   @Get('me')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get current user profile via JWT Bearer token' })
-  async getMe(@Headers('authorization') authHeader?: string) {
-    if (!authHeader) {
-      throw new HttpException('Missing authorization header', HttpStatus.UNAUTHORIZED);
+  @ApiOperation({ summary: 'Get current user profile via JWT Bearer token or session cookie' })
+  async getMe(
+    @Req() req: any,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const token =
+      (authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null) ||
+      req.cookies?.access_token;
+
+    if (!token) {
+      throw new HttpException('Missing authorization token or session cookie', HttpStatus.UNAUTHORIZED);
     }
 
     try {
       const response = await fetch(`${this.authServiceUrl}/auth/me`, {
-        headers: { Authorization: authHeader },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
@@ -228,8 +271,13 @@ export class GatewayAuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ summary: 'Revoke active authentication session' })
-  async logout(@Body() body: { refreshToken?: string }) {
+  @ApiOperation({ summary: 'Revoke active authentication session and clear cookies' })
+  async logout(
+    @Body() body: { refreshToken?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    clearAuthCookies(res);
+
     try {
       const response = await fetch(`${this.authServiceUrl}/auth/logout`, {
         method: 'POST',
@@ -238,24 +286,6 @@ export class GatewayAuthController {
       });
 
       return await response.json();
-    } catch {
-      return { success: true, message: 'Logged out' };
-    }
-  }
-
-  @Get('users/:id')
-  @ApiOperation({ summary: 'Get user profile' })
-  async getProfile(@Param('id') id: string) {
-    try {
-      const response = await fetch(`${this.authServiceUrl}/users/${id}`);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new HttpException(
-          data.message || 'User not found',
-          response.status,
-        );
-      }
-      return data;
     } catch (error: any) {
       if (error instanceof HttpException) throw error;
       throw new HttpException(

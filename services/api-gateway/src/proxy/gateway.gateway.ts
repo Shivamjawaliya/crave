@@ -44,12 +44,15 @@ export class GatewaySocketGateway implements OnModuleInit, OnModuleDestroy, OnGa
 
   handleConnection(client: Socket) {
     try {
-      const authHeader =
-        client.handshake.auth?.token ||
-        client.handshake.headers?.authorization;
-      const token = typeof authHeader === 'string'
-        ? authHeader.replace(/^Bearer\s+/i, '').trim()
-        : null;
+      let token: string | null = null;
+      if (client.handshake.auth?.token) {
+        token = String(client.handshake.auth.token).replace(/^Bearer\s+/i, '').trim();
+      } else if (client.handshake.headers?.authorization) {
+        token = String(client.handshake.headers.authorization).replace(/^Bearer\s+/i, '').trim();
+      } else if (client.handshake.headers?.cookie) {
+        const match = client.handshake.headers.cookie.match(/(?:^|;\s*)access_token=([^;]+)/);
+        if (match) token = decodeURIComponent(match[1]);
+      }
 
       if (token) {
         client.data.user = this.verifyToken(token);
