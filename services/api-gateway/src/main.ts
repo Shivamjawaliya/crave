@@ -33,19 +33,56 @@ async function bootstrap() {
     'http://localhost:3003',
     'http://localhost:3004',
     'https://35.226.137.38.sslip.io',
+    'https://crave-restaurant-dashboard.vercel.app',
+    'https://crave-delivery-dashboard.vercel.app',
+    'https://crave-admin-dashboard.vercel.app',
+    'https://crave-blue.vercel.app',
     ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim()) : []),
   ];
 
+  const isOriginAllowed = (origin?: string): boolean => {
+    if (!origin) return true; // Server-to-server, curl, Postman, mobile app
+    if (defaultAllowedOrigins.includes(origin)) return true;
+    try {
+      const url = new URL(origin);
+      const hostname = url.hostname;
+      if (
+        hostname.endsWith('.vercel.app') ||
+        hostname.endsWith('.sslip.io') ||
+        hostname.endsWith('.onrender.com') ||
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1'
+      ) {
+        return true;
+      }
+    } catch {
+      // Non-standard origin
+    }
+    return false;
+  };
+
   app.enableCors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (e.g. server-to-server, curl) or matching allowed list
-      if (!origin || defaultAllowedOrigins.includes(origin) || origin.endsWith('.sslip.io')) {
+      if (isOriginAllowed(origin)) {
+        // Express CORS echoes the exact origin; necessary when credentials: true
         callback(null, true);
       } else {
+        logger.warn(`Blocked CORS request from origin: ${origin}`);
         callback(null, false);
       }
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+      'Cookie',
+      'x-access-token',
+    ],
+    maxAge: 86400,
   });
 
   const config = new DocumentBuilder()
